@@ -1,44 +1,30 @@
 # Sol Advisor
 
-**Sol / High runs the show. It declares a risk-gated route before task tools, keeps
-solo as the default, and uses a single auxiliary only when that improves delivery.**
-
 Sol Advisor is a Codex-only workflow for capability-routed software delivery. You
-bring the goal and constraints; Sol owns the plan, implementation or delegation,
-verification, and acceptance.
+provide the outcome and constraints; the root owns planning, implementation or
+delegation, verification, and acceptance.
 
-## Go deeper
+## Install from GitHub
 
-I write [**Attention Heads**](https://attentionheads.substack.com/?utm_source=github&utm_medium=readme&utm_campaign=sol-advisor) — deep, evidence-backed writing on AI, cognition, and agentic engineering. The **Agentic Engineering Field Notes** series is where I publish practical advice on the craft of using AI. [Subscribe](https://attentionheads.substack.com/subscribe?utm_source=github&utm_medium=readme&utm_campaign=sol-advisor) to get new posts to your inbox.
-
-## Quick start
-
-You need a current Codex CLI or ChatGPT desktop app with plugins enabled, GPT-5.6
-Sol / High for the primary session, native custom-agent support, and jq. GPT-5.6
-Luna / Max or Terra / High access is needed only when the selected route delegates.
+You need a current Codex CLI or ChatGPT desktop app with plugins enabled, native
+custom-agent support, and jq. Luna / Max, Terra / High, or Reviewer Sol / High access
+is needed only when that auxiliary is used.
 
 ~~~sh
-codex plugin marketplace add DannyMac180/sol-advisor --ref main
-codex plugin add sol-advisor@sol-advisor
-plugin_dir="$(codex plugin list --json | jq -r '.installed[] | select(.pluginId == "sol-advisor@sol-advisor") | .source.path')" && test -n "$plugin_dir" && test "$plugin_dir" != null && test -d "$plugin_dir" && test -f "$plugin_dir/scripts/install-agents.sh" && sh "$plugin_dir/scripts/install-agents.sh"
+codex plugin marketplace add devon-kong/sol-advisor --ref main
+plugin_dir="$(codex plugin add sol-advisor@sol-advisor --json | jq -er '.installedPath | select(type == "string" and length > 0)')" && test -d "$plugin_dir" && test -f "$plugin_dir/scripts/install-agents.sh" && sh "$plugin_dir/scripts/install-agents.sh"
 ~~~
 
-The companion installer verifies all three exact role files after installation. It is
-fail-closed: modified, unsafe, nonregular, symlinked, unknown, or differing files
-are left untouched. It does not edit Codex configuration. Start a fresh Codex task
-after installation so native roles are discovered.
+The companion installer verifies the three exact role files after installation. It
+fails closed: modified, unsafe, nonregular, symlinked, unknown, or differing files are
+left untouched. It does not edit Codex configuration. Start a fresh Codex task after
+installation so native roles are discovered.
 
-Use this one prompt in the new task:
+Use this prompt in the new task:
 
 ~~~text
 Use $sol-advisor:orchestration to build this feature and verify it. Declare the selective route before task tools.
 ~~~
-
-## What you do
-
-Give Sol the outcome, constraints, and any important repository context. You do not
-need to select or manage a lane; Sol records the route and owns verification and
-acceptance.
 
 ## Routes
 
@@ -46,21 +32,18 @@ acceptance.
 |---|---|---|
 | `solo` | Default; risk is contained. | Root plans, implements, tests, and self-reviews. |
 | `delegate` | A complete spec is better executed by one implementer. | Luna / Max for bounded work, or Terra / High for judgment-heavy or high-risk work; root verifies. |
-| `audit` | Independent final scrutiny matters more than delegation. | Root implements; a fresh read-only Sol / High reviews. |
-| `full` | Explicit broad or high-risk exception. | One selected implementer, root verification, and a fresh Sol / High review. |
+| `audit` | Independent final scrutiny matters more than delegation. | Root implements; a fresh read-only Reviewer inspects the diff. |
+| `full` | Explicit broad or high-risk exception. | One selected implementer, root verification, then fresh Reviewer scrutiny. |
 
 Solo is the default. One auxiliary is the default maximum; `full` is the explicit
-exception. Sol emits a `SELECTIVE ROUTE` declaration with the mode and concise risk
-rationale before the first task tool call. It can escalate only when newly observed
-risk justifies it and never silently downgrades.
+exception. The root declares a `SELECTIVE ROUTE` with the mode and concise risk
+rationale before the first task tool call. It can escalate only when newly
+observed risk justifies it and never silently downgrades. You do not need to select or
+manage a lane.
 
-## What happens automatically
-
-Sol / High keeps architecture, decomposition, route selection, parent verification,
-escalation decisions, and acceptance in the primary task. Auxiliary work substitutes
-for root work; it does not duplicate it. The root inspects the complete diff and
-reruns the requested checks. When the selected route includes a review, a fresh Sol /
-High reviewer returns ship, fix-first, or rethink; any fix requires a new review.
+Auxiliary work substitutes for root work; it does not duplicate it. The root inspects
+the complete diff and reruns the requested checks. When the selected route includes a
+review, the Reviewer returns ship, fix-first, or rethink; any fix requires a new review.
 
 ## Updating
 
@@ -68,16 +51,5 @@ Update the marketplace plugin, reinstall the companion roles, and start a new ta
 
 ~~~sh
 codex plugin marketplace upgrade sol-advisor
-codex plugin add sol-advisor@sol-advisor
-plugin_dir="$(codex plugin list --json | jq -r '.installed[] | select(.pluginId == "sol-advisor@sol-advisor") | .source.path')" && test -n "$plugin_dir" && test "$plugin_dir" != null && test -d "$plugin_dir" && test -f "$plugin_dir/scripts/install-agents.sh" && sh "$plugin_dir/scripts/install-agents.sh"
-~~~
-
-For exact spawn, runtime-evidence, sandbox, installer, and maintainer verification
-details, read [advanced native operations](plugins/sol-advisor/skills/orchestration/references/operations.md).
-For local development, install this checkout as a marketplace:
-
-~~~sh
-cd /absolute/path/to/sol-advisor
-codex plugin marketplace add /absolute/path/to/sol-advisor
-codex plugin add sol-advisor@sol-advisor
+plugin_dir="$(codex plugin add sol-advisor@sol-advisor --json | jq -er '.installedPath | select(type == "string" and length > 0)')" && test -d "$plugin_dir" && test -f "$plugin_dir/scripts/install-agents.sh" && sh "$plugin_dir/scripts/install-agents.sh"
 ~~~

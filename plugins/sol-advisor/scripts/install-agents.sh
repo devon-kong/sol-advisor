@@ -17,10 +17,11 @@ set, otherwise "$HOME/.codex/agents".
 
 Options:
   --target-dir PATH  Explicit destination directory (absolute or relative).
-  --check            Verify that Luna, Terra, and Sol match exactly; do not create,
+  --check            Verify that Luna, Terra, and Reviewer match exactly; do not create,
                      replace, or remove anything.
-  --check-role ROLE  Verify only ROLE (luna, terra, or sol); repeatable and implies
-                     --check. Unknown or missing roles fail without mutation.
+  --check-role ROLE  Verify only ROLE (luna, terra, or reviewer); repeatable and
+                     implies --check. The legacy sol alias means reviewer. Unknown
+                     or missing roles fail without mutation.
   --help             Show this help text.
 EOF
 }
@@ -170,13 +171,14 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     --check-role)
-      [ "$#" -ge 2 ] || fail "--check-role requires a role: luna, terra, or sol."
+      [ "$#" -ge 2 ] || fail "--check-role requires a role: luna, terra, or reviewer (legacy: sol)."
       case "$2" in
-        luna|terra|sol) ;;
-        *) fail "unknown --check-role '$2'; expected luna, terra, or sol." ;;
+        luna|terra) role=$2 ;;
+        reviewer|sol) role=reviewer ;;
+        *) fail "unknown --check-role '$2'; expected luna, terra, or reviewer (legacy: sol)." ;;
       esac
       check_only=1
-      check_roles=$check_roles$2,
+      check_roles=$check_roles$role,
       shift 2
       ;;
     --help|-h)
@@ -200,13 +202,13 @@ esac
 
 terra_file=sol-advisor-terra-implementer.toml
 luna_file=sol-advisor-luna-implementer.toml
-sol_file=sol-advisor-sol-reviewer.toml
+reviewer_file=sol-advisor-sol-reviewer.toml
 terra_template=$template_dir/$terra_file
 luna_template=$template_dir/$luna_file
-sol_template=$template_dir/$sol_file
+reviewer_template=$template_dir/$reviewer_file
 terra_destination=$target_dir/$terra_file
 luna_destination=$target_dir/$luna_file
-sol_destination=$target_dir/$sol_file
+reviewer_destination=$target_dir/$reviewer_file
 
 # Immutable historical byte digests, calculated from the shipped v0.2.0 role files:
 # git show bbc3dc1:plugins/sol-advisor/agents/sol-advisor-luna-implementer.toml | shasum -a 256
@@ -217,11 +219,6 @@ legacy_terra_sha256=4425a8c1f21ce8c6af93f96adc253bbc33ea301f1389b3fa8ce350be0858
 legacy_luna_v050_sha256=5cfaf77f14757074ca5d3cfecd0b8204c91dc14eff8d6119985c64416ddf4853
 legacy_terra_v050_sha256=dc329fe87f6f6610c13157ec16432f91c79cf5a541ee3e7448f6afb165dd18ce
 
-for template in "$luna_template" "$terra_template" "$sol_template"; do
-  [ -f "$template" ] && [ ! -L "$template" ] ||
-    fail "shipped template is missing or not a regular file: $template"
-done
-
 preflight_failed=0
 if path_exists "$target_dir"; then
   if [ -L "$target_dir" ] || [ ! -d "$target_dir" ]; then
@@ -229,24 +226,36 @@ if path_exists "$target_dir"; then
   fi
 fi
 
-luna_state=$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")
-terra_state=$(classify_current_or_legacy "$terra_destination" "$terra_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256")
-sol_state=$(classify_current_or_legacy "$sol_destination" "$sol_template" '' '')
-
 if [ "$check_only" -eq 1 ]; then
   if role_selected luna; then
+    [ -f "$luna_template" ] && [ ! -L "$luna_template" ] ||
+      report_preflight_error "shipped Luna template is missing or not a regular file: $luna_template"
+    luna_state=$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")
     [ "$luna_state" = current ] ||
       report_preflight_error "Luna template is $luna_state, not the current exact file: $luna_destination"
   fi
   if role_selected terra; then
+    [ -f "$terra_template" ] && [ ! -L "$terra_template" ] ||
+      report_preflight_error "shipped Terra template is missing or not a regular file: $terra_template"
+    terra_state=$(classify_current_or_legacy "$terra_destination" "$terra_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256")
     [ "$terra_state" = current ] ||
       report_preflight_error "Terra template is $terra_state, not the current exact file: $terra_destination"
   fi
-  if role_selected sol; then
-    [ "$sol_state" = current ] ||
-      report_preflight_error "Sol template is $sol_state, not the current exact file: $sol_destination"
+  if role_selected reviewer; then
+    [ -f "$reviewer_template" ] && [ ! -L "$reviewer_template" ] ||
+      report_preflight_error "shipped Reviewer template is missing or not a regular file: $reviewer_template"
+    reviewer_state=$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" '' '')
+    [ "$reviewer_state" = current ] ||
+      report_preflight_error "Reviewer template is $reviewer_state, not the current exact file: $reviewer_destination"
   fi
 else
+  for template in "$luna_template" "$terra_template" "$reviewer_template"; do
+    [ -f "$template" ] && [ ! -L "$template" ] ||
+      fail "shipped template is missing or not a regular file: $template"
+  done
+  luna_state=$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")
+  terra_state=$(classify_current_or_legacy "$terra_destination" "$terra_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256")
+  reviewer_state=$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" '' '')
   case "$luna_state" in
     current|legacy|missing) ;;
     *) report_preflight_error "Luna destination is $luna_state and will not be replaced: $luna_destination" ;;
@@ -255,9 +264,9 @@ else
     current|legacy|missing) ;;
     *) report_preflight_error "Terra destination is $terra_state and will not be replaced: $terra_destination" ;;
   esac
-  case "$sol_state" in
+  case "$reviewer_state" in
     current|missing) ;;
-    *) report_preflight_error "Sol destination is $sol_state and will not be replaced: $sol_destination" ;;
+    *) report_preflight_error "Reviewer destination is $reviewer_state and will not be replaced: $reviewer_destination" ;;
   esac
 fi
 
@@ -267,7 +276,7 @@ if [ "$check_only" -eq 1 ]; then
   if [ -n "$check_roles" ]; then
     printf '%s\n' "CHECK PASSED: selected role templates exactly match $template_dir."
   else
-    printf '%s\n' "CHECK PASSED: Luna, Terra, and Sol exactly match $template_dir."
+    printf '%s\n' "CHECK PASSED: Luna, Terra, and Reviewer exactly match $template_dir."
   fi
   exit 0
 fi
@@ -280,7 +289,7 @@ fi
 
 same_state Luna "$luna_state" "$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")"
 same_state Terra "$terra_state" "$(classify_current_or_legacy "$terra_destination" "$terra_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256")"
-same_state Sol "$sol_state" "$(classify_current_or_legacy "$sol_destination" "$sol_template" '' '')"
+same_state Reviewer "$reviewer_state" "$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" '' '')"
 
 case "$luna_state" in
   missing) install_missing "$luna_template" "$luna_destination" ;;
@@ -294,16 +303,16 @@ case "$terra_state" in
   current) printf '%s\n' "ALREADY CURRENT: $terra_destination" ;;
 esac
 
-case "$sol_state" in
-  missing) install_missing "$sol_template" "$sol_destination" ;;
-  current) printf '%s\n' "ALREADY CURRENT: $sol_destination" ;;
+case "$reviewer_state" in
+  missing) install_missing "$reviewer_template" "$reviewer_destination" ;;
+  current) printf '%s\n' "ALREADY CURRENT: $reviewer_destination" ;;
 esac
 
 [ "$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")" = current ] ||
   fail "post-install exactness check failed: $luna_destination"
 [ "$(classify_current_or_legacy "$terra_destination" "$terra_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256")" = current ] ||
   fail "post-install exactness check failed: $terra_destination"
-[ "$(classify_current_or_legacy "$sol_destination" "$sol_template" '' '')" = current ] ||
-  fail "post-install exactness check failed: $sol_destination"
+[ "$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" '' '')" = current ] ||
+  fail "post-install exactness check failed: $reviewer_destination"
 
-printf '%s\n' "INSTALL PASSED: Luna, Terra, and Sol exactly match $template_dir."
+printf '%s\n' "INSTALL PASSED: Luna, Terra, and Reviewer exactly match $template_dir."

@@ -15,14 +15,6 @@ Read [references/role-contracts.md](references/role-contracts.md) before the fir
 delegation. Use [references/operations.md](references/operations.md) for exact spawn,
 preflight, runtime-evidence, isolation, and maintainer procedures.
 
-## Confirm the primary session
-
-Run the primary Codex session on gpt-5.6-sol with high reasoning. Verify the current
-model and effort when runtime metadata exposes them. If either differs, tell the user
-to select Sol / High and stop before delegation. If runtime metadata does not expose
-them, ask the user to confirm Sol / High and stop until confirmed. A skill cannot
-change the primary model itself; never assume or claim this prerequisite is satisfied.
-
 ## Declare the route before task tools
 
 Before the first task tool call, emit one machine-auditable declaration:
@@ -38,14 +30,18 @@ justifies another mode. A later declaration may only escalate the route when new
 observed risk justifies it; never silently downgrade. Record the evidence for an
 escalation. Details and the task-scoped preflight matrix are in operations.md.
 
-## Preflight selected auxiliaries only
+## Preflight and verify only the active auxiliary stage
 
-Confirm Sol / High in the primary session. Preflight only an auxiliary selected by the
-declared route: none for solo; Luna / Max or Terra / High for delegate; fresh Sol / High
-for audit; and the selected implementer plus fresh Sol reviewer for full. Public metadata
-for role, model, and effort is authoritative. If it omits a model or effort, use the
-local inspector only for that omitted field. Missing, conflicting, unavailable, or
-unobservable evidence stops the affected lane; never silently substitute a role,
+Solo checks no auxiliary. Immediately before spawning Luna or Terra, non-mutatingly
+preflight only that selected implementer. Immediately before spawning the Reviewer at
+the review stage, preflight only the Reviewer. In `full`, do not preflight the Reviewer
+at route start: root verification may prevent that stage from being reached.
+
+After each actual spawn, accept its result only after verifying the exact returned
+native thread's role, model, and effort. Public metadata is authoritative; if it omits
+a model or effort, use the local inspector only for that omitted field. The Reviewer
+also needs observed sandbox and permission handling. Missing, conflicting, unavailable,
+or unobservable evidence stops only the affected lane; never silently substitute a role,
 model, effort, or reviewer.
 
 ## Route delivery without duplication
@@ -65,9 +61,9 @@ risk, wide blast radius, or misclassification. A corrected Luna attempt is reser
 for a specification error and is not a prerequisite for Terra. Any route change must
 be declared and evidenced; do not silently downgrade.
 
-## Keep architect work in the primary session
+## Keep root responsibilities with the root
 
-Keep these responsibilities in the primary session:
+Keep these responsibilities with the root:
 
 - Resolve requirements and material ambiguity.
 - Choose architecture, interfaces, decomposition, and selective route.
@@ -82,8 +78,8 @@ CONSTRAINTS, VERIFICATION, and the structured implementation return in
 preserve concurrent edits, and never silently widen scope.
 
 Treat worker reports as claims. Confirm the complete diff, changed-file scope, requested
-checks, and artifact/runtime evidence in the parent session. Do not duplicate the
-selected implementer's work in the primary session.
+checks, and artifact/runtime evidence as the root. Do not duplicate the selected
+implementer's work.
 
 ## Review only when the route includes it
 
