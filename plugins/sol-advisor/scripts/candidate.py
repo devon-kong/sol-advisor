@@ -15,7 +15,7 @@ import tempfile
 from typing import Any
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class CandidateError(Exception):
@@ -79,8 +79,7 @@ def filesystem_encodable(value: str) -> bool:
 
 
 def require_manifest_outside_repo(path: Path, repo: Path) -> None:
-    resolved = path.expanduser().resolve(strict=False)
-    if is_within(resolved, repo):
+    if is_within(path, repo):
         raise CandidateError("candidate manifest must be outside the candidate repository")
 
 
@@ -109,14 +108,77 @@ def canonical_absolute_path(path: str, *, preserve_final_symlink: bool) -> bool:
     ):
         return False
     candidate = Path(path)
+    if preserve_final_symlink:
+        try:
+            return bool(candidate.name) and parents_have_no_symlinks(candidate)
+        except OSError:
+            return False
     try:
-        if preserve_final_symlink:
-            canonical = candidate.parent.resolve(strict=False) / candidate.name
-        else:
-            canonical = candidate.resolve(strict=False)
+        canonical = candidate.resolve(strict=True)
     except (OSError, RuntimeError):
         return False
-    return (not preserve_final_symlink or bool(candidate.name)) and os.fspath(canonical) == path
+    return os.fspath(canonical) == path
+
+
+def parent_components(path: Path) -> list[Path]:
+    """Return existing lexical parent components from the filesystem anchor onward."""
+    return list(reversed(path.parent.parents)) + [path.parent]
+
+
+def parents_have_no_symlinks(path: Path) -> bool:
+    for parent in parent_components(path):
+        try:
+            details = os.lstat(parent)
+        except FileNotFoundError:
+            return True
+        if stat.S_ISLNK(details.st_mode):
+            return False
+    return True
+
+
+def absolute_explicit_input(raw: str) -> Path:
+    """Bind an explicit input without accepting a mutable parent-directory alias."""
+    requested = Path(raw).expanduser()
+    if any(part == ".." for part in requested.parts):
+        raise CandidateError(f"explicit candidate input contains '..': {raw}")
+    if not requested.is_absolute():
+        requested = Path.cwd() / requested
+    path = Path(os.path.abspath(os.fspath(requested)))
+    if not parents_have_no_symlinks(path):
+        raise CandidateError(
+            "explicit candidate input has a symlinked parent; "
+            f"requested path: {raw}"
+        )
+    return path
+
+
+def resolve_manifest_output(raw: str) -> Path:
+    """Resolve only an existing output parent; never follow a final output symlink."""
+    requested = Path(raw).expanduser()
+    if not requested.is_absolute():
+        requested = Path.cwd() / requested
+    requested = Path(os.path.abspath(os.fspath(requested)))
+    try:
+        parent = Path(os.path.realpath(os.fspath(requested.parent), strict=True))
+    except (OSError, RuntimeError) as exc:
+        raise CandidateError(
+            "manifest parent directory cannot be resolved: "
+            f"requested path {raw}: {exc}"
+        ) from exc
+    if not parent.is_dir():
+        raise CandidateError(f"manifest parent directory does not exist: {parent}")
+    output = parent / requested.name
+    try:
+        details = os.lstat(output)
+    except FileNotFoundError:
+        return output
+    except OSError as exc:
+        raise CandidateError(f"cannot inspect candidate manifest output {output}: {exc.strerror}") from exc
+    if stat.S_ISLNK(details.st_mode):
+        raise CandidateError(f"candidate manifest output must not be a symlink: {output}")
+    if not stat.S_ISREG(details.st_mode):
+        raise CandidateError(f"candidate manifest output must be missing or a regular file: {output}")
+    return output
 
 
 def sha256_fd(fd: int) -> tuple[str, int]:
@@ -243,13 +305,7 @@ def current_head(repo: Path) -> str | None:
 def normalize_explicit_inputs(values: list[str]) -> list[str]:
     normalized: set[str] = set()
     for value in values:
-        path = Path(value).expanduser()
-        if not path.is_absolute():
-            path = Path.cwd() / path
-        # Canonicalize the parent while preserving the final component so an explicit
-        # symlink binds the link and its target text rather than silently following it.
-        path = path.parent.resolve(strict=False) / path.name
-        normalized.add(os.fspath(path))
+        normalized.add(os.fspath(absolute_explicit_input(value)))
     return sorted(normalized, key=os.fsencode)
 
 
@@ -275,7 +331,11 @@ def build_candidate(
         "repo_inventory": "tracked-and-unignored-untracked",
         "explicit_inputs": explicit_inputs,
     }
-    identity = {"selection": selection, "entries": entries}
+    identity = {
+        "schema_version": SCHEMA_VERSION,
+        "selection": selection,
+        "entries": entries,
+    }
     candidate_id = "sha256:" + hashlib.sha256(canonical_json(identity)).hexdigest()
     return {
         "schema_version": SCHEMA_VERSION,
@@ -288,12 +348,18 @@ def build_candidate(
 
 
 def validate_manifest(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise CandidateError("candidate manifest top-level value must be an object")
     if (
-        not isinstance(value, dict)
-        or not isinstance(value.get("schema_version"), int)
+        not isinstance(value.get("schema_version"), int)
         or isinstance(value.get("schema_version"), bool)
         or value.get("schema_version") != SCHEMA_VERSION
     ):
+        if value.get("schema_version") == 1:
+            raise CandidateError(
+                "candidate manifest schema version 1 is unsupported; "
+                "regenerate, reverify, and rereview"
+            )
         raise CandidateError("unsupported or missing candidate manifest schema")
     if set(value) != {
         "schema_version",
@@ -415,7 +481,11 @@ def validate_manifest(value: Any) -> dict[str, Any]:
         raise CandidateError("candidate manifest explicit entries do not match selection")
     if any(entry["type"] == "missing" for entry in entries if entry["scope"] == "input"):
         raise CandidateError("candidate manifest cannot snapshot a missing explicit input")
-    identity = {"selection": selection, "entries": entries}
+    identity = {
+        "schema_version": SCHEMA_VERSION,
+        "selection": selection,
+        "entries": entries,
+    }
     expected = "sha256:" + hashlib.sha256(canonical_json(identity)).hexdigest()
     if value.get("candidate_id") != expected:
         raise CandidateError("candidate manifest identifier does not match its contents")
@@ -442,6 +512,42 @@ def write_manifest(path: Path, value: dict[str, Any]) -> None:
         raise CandidateError(f"cannot write candidate manifest {path}: {exc.strerror}") from exc
 
 
+def existing_regular_identity(path: Path) -> tuple[int, int] | None:
+    """Return the target identity for an existing regular path, including hardlinks."""
+    try:
+        details = os.stat(path)
+    except (FileNotFoundError, OSError):
+        return None
+    if not stat.S_ISREG(details.st_mode):
+        return None
+    return details.st_dev, details.st_ino
+
+
+def reject_output_overlap(output: Path, explicit_inputs: list[str]) -> None:
+    output_identity = existing_regular_identity(output)
+    output_name = os.fspath(output)
+    for raw_input in explicit_inputs:
+        input_path = Path(raw_input)
+        if os.fspath(input_path) == output_name:
+            raise CandidateError(
+                "candidate manifest output overlaps an explicit candidate input: "
+                f"{output}"
+            )
+        if output_identity is not None and existing_regular_identity(input_path) == output_identity:
+            raise CandidateError(
+                "candidate manifest output has the same file identity as an explicit "
+                f"candidate input: {input_path}"
+            )
+
+
+def valid_candidate_id(value: str) -> bool:
+    return (
+        value.startswith("sha256:")
+        and len(value) == len("sha256:") + 64
+        and all(character in "0123456789abcdef" for character in value[len("sha256:") :])
+    )
+
+
 def entry_map(entries: list[dict[str, Any]]) -> dict[tuple[str, str], dict[str, Any]]:
     return {(item["scope"], item["path"]): item for item in entries}
 
@@ -466,10 +572,11 @@ def compare_entries(
 
 def snapshot_command(args: argparse.Namespace) -> int:
     repo = resolve_repo(args.repo)
-    output = Path(args.output).expanduser().resolve(strict=False)
+    output = resolve_manifest_output(args.output)
     require_manifest_outside_repo(output, repo)
     explicit = normalize_explicit_inputs(args.input)
     manifest = build_candidate(repo, explicit)
+    reject_output_overlap(output, explicit)
     write_manifest(output, manifest)
     print(
         json.dumps(
@@ -486,6 +593,10 @@ def snapshot_command(args: argparse.Namespace) -> int:
 
 
 def verify_command(args: argparse.Namespace) -> int:
+    if args.expected_candidate_id is not None and not valid_candidate_id(
+        args.expected_candidate_id
+    ):
+        raise CandidateError("expected candidate ID has invalid syntax")
     manifest_path = Path(args.manifest).expanduser().resolve(strict=True)
     try:
         with manifest_path.open("r", encoding="utf-8") as handle:
@@ -498,20 +609,26 @@ def verify_command(args: argparse.Namespace) -> int:
         repo, manifest["selection"]["explicit_inputs"], explicit_allow_missing=True
     )
     changes = compare_entries(manifest["entries"], current["entries"])
-    matched = not changes and current["candidate_id"] == manifest["candidate_id"]
-    print(
-        json.dumps(
-            {
-                "status": "match" if matched else "changed",
-                "candidate_id": manifest["candidate_id"],
-                "current_candidate_id": current["candidate_id"],
-                "head_changed": current["source"]["head"]
-                != manifest["source"]["head"],
-                "changes": changes,
-            },
-            sort_keys=True,
-        )
+    expected_matches = (
+        args.expected_candidate_id is None
+        or args.expected_candidate_id == manifest["candidate_id"]
     )
+    matched = (
+        expected_matches
+        and not changes
+        and current["candidate_id"] == manifest["candidate_id"]
+    )
+    output: dict[str, Any] = {
+        "status": "match" if matched else "changed",
+        "candidate_id": manifest["candidate_id"],
+        "current_candidate_id": current["candidate_id"],
+        "head_changed": current["source"]["head"] != manifest["source"]["head"],
+        "changes": changes,
+    }
+    if args.expected_candidate_id is not None:
+        output["expected_candidate_id"] = args.expected_candidate_id
+        output["expected_candidate_id_match"] = expected_matches
+    print(json.dumps(output, sort_keys=True))
     return 0 if matched else 1
 
 
@@ -532,6 +649,10 @@ def parser() -> argparse.ArgumentParser:
     snapshot.set_defaults(handler=snapshot_command)
     verify = commands.add_parser("verify", help="compare a manifest with current inputs")
     verify.add_argument("--manifest", required=True, help="manifest created by snapshot")
+    verify.add_argument(
+        "--expected-candidate-id",
+        help="require the manifest to be the earlier reviewed candidate ID",
+    )
     verify.set_defaults(handler=verify_command)
     return result
 

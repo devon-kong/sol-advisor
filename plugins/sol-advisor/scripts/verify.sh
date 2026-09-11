@@ -169,10 +169,10 @@ grep -Fq 'SELECTIVE ROUTE' "$ui" || fail "UI metadata default prompt omits route
 pass "UI metadata exposes orchestration and its default route prompt"
 
 jq empty "$manifest"
-[ "$(jq -r '.version' "$manifest")" = 0.7.0 ] || fail "manifest version is not 0.7.0"
+[ "$(jq -r '.version' "$manifest")" = 0.7.1 ] || fail "manifest version is not 0.7.1"
 grep -Fq 'SELECTIVE ROUTE' "$manifest" || fail "manifest omits route declaration"
 grep -Fq 'Spawned auxiliary evidence is fail-closed' "$manifest" || fail "manifest omits auxiliary fail-closed rule"
-pass "manifest JSON and v0.7.0 discovery copy"
+pass "manifest JSON and v0.7.1 discovery copy"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path
@@ -471,6 +471,9 @@ grep -Fqi 'public metadata' "$skill" || fail "skill lacks public-metadata eviden
 grep -Fqi 'local inspector' "$skill" || fail "skill lacks runtime fallback rule"
 grep -Fqi 'root captures exact before/after repository and artifact state' "$operations" || fail "operations lack behavioral read-only state check"
 grep -Fq 'REVIEW RESULT' "$contracts" || fail "Reviewer contract lacks a distinct structured result heading"
+grep -Fq 'REVIEWED_CANDIDATE:' "$contracts" || fail "Reviewer contract lacks reviewed-candidate return"
+grep -Fq -- '--expected-candidate-id' "$operations" || fail "operations omit reviewed-candidate verification"
+grep -Fq 'must not derive the final expected ID' "$operations" || fail "operations permit regenerated final candidate IDs"
 if rg -ni 'primary.{0,80}(model|effort)|Sol / High.{0,80}primary|primary.{0,80}Sol / High' \
   "$readme" "$manifest" "$skill" "$contracts" "$operations"; then
   fail "primary model/effort coupling remains in user/runtime policy"
@@ -581,4 +584,4 @@ sh -n "$runtime_inspector"
 sh -n "$script_dir/verify.sh"
 pass "shell syntax"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor v0.7.0 convergence checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor v0.7.1 convergence checks completed in $tmp_dir"

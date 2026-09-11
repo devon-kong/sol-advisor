@@ -163,6 +163,7 @@ OWNERSHIP: implementer | root | environment | review
 REQUIRED NEXT ACTION: <outcome needed; separate an optional remedy suggestion>
 
 REVIEW RESULT
+REVIEWED_CANDIDATE: <exact candidate ID supplied in CANDIDATE>
 VERDICT: ship | fix-first | rethink
 REASON: <decisive evidence-based reason>
 FINDINGS: <structured findings above, or none>

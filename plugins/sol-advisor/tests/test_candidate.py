@@ -18,7 +18,9 @@ TOOL = PLUGIN / "scripts" / "candidate.py"
 class CandidateToolTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory(prefix="sol-advisor-candidate-test.")
-        self.base = Path(self.temporary.name)
+        # macOS commonly exposes the temporary directory through /var, a system
+        # symlink. Explicit-input tests intentionally use the stable absolute path.
+        self.base = Path(self.temporary.name).resolve(strict=True)
         self.repo = self.base / "repo"
         self.repo.mkdir()
         self.git("init", "-q")
@@ -62,12 +64,18 @@ class CandidateToolTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return json.loads(result.stdout)
 
-    def verify(self) -> tuple[subprocess.CompletedProcess[str], dict[str, object]]:
-        result = self.tool("verify", "--manifest", os.fspath(self.manifest))
+    def verify(
+        self, *extra: str
+    ) -> tuple[subprocess.CompletedProcess[str], dict[str, object]]:
+        result = self.tool("verify", "--manifest", os.fspath(self.manifest), *extra)
         return result, json.loads(result.stdout)
 
     def write_rehashed_manifest(self, value: dict[str, object]) -> None:
-        identity = {"selection": value["selection"], "entries": value["entries"]}
+        identity = {
+            "schema_version": value["schema_version"],
+            "selection": value["selection"],
+            "entries": value["entries"],
+        }
         encoded = json.dumps(
             identity, ensure_ascii=True, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")
@@ -186,6 +194,189 @@ class CandidateToolTests(unittest.TestCase):
             ],
         )
 
+    def test_expected_candidate_id_requires_the_reviewed_candidate(self) -> None:
+        snapshot = self.snapshot()
+        candidate_id = snapshot["candidate_id"]
+        self.assertIsInstance(candidate_id, str)
+
+        result, payload = self.verify(
+            "--expected-candidate-id", str(candidate_id)
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(payload["status"], "match")
+        self.assertTrue(payload["expected_candidate_id_match"])
+        self.assertEqual(result.stderr, "")
+
+        replacement = "sha256:" + "0" * 64
+        self.assertNotEqual(replacement, candidate_id)
+        result, payload = self.verify("--expected-candidate-id", replacement)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(payload["status"], "changed")
+        self.assertEqual(payload["changes"], [])
+        self.assertFalse(payload["expected_candidate_id_match"])
+        self.assertEqual(payload["expected_candidate_id"], replacement)
+        self.assertEqual(result.stderr, "")
+
+        result, payload = self.verify("--expected-candidate-id", "bad-id")
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(payload["status"], "error")
+        self.assertIn("expected candidate ID", payload["error"])
+        self.assertEqual(result.stderr, "")
+
+    def test_candidate_id_includes_schema_version(self) -> None:
+        self.snapshot()
+        value = json.loads(self.manifest.read_text(encoding="utf-8"))
+        identity = {
+            "schema_version": value["schema_version"],
+            "selection": value["selection"],
+            "entries": value["entries"],
+        }
+        expected = "sha256:" + hashlib.sha256(
+            json.dumps(
+                identity, ensure_ascii=True, sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+        ).hexdigest()
+        legacy_identity = {"selection": value["selection"], "entries": value["entries"]}
+        legacy = "sha256:" + hashlib.sha256(
+            json.dumps(
+                legacy_identity, ensure_ascii=True, sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+        ).hexdigest()
+        self.assertEqual(value["schema_version"], 2)
+        self.assertEqual(value["candidate_id"], expected)
+        self.assertNotEqual(value["candidate_id"], legacy)
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks are unavailable")
+    def test_explicit_input_rejects_parent_alias_and_dotdot_without_writing(self) -> None:
+        stable_parent = self.base / "stable-input-parent"
+        stable_parent.mkdir()
+        selected = stable_parent / "selected.txt"
+        selected.write_text("selected\n", encoding="utf-8")
+        alias = self.base / "input-parent-alias"
+        os.symlink(stable_parent, alias)
+        self.manifest.write_text("manifest sentinel\n", encoding="utf-8")
+
+        for input_path, expected in (
+            (alias / selected.name, "symlinked parent"),
+            (stable_parent / "child" / ".." / selected.name, "contains '..'"),
+        ):
+            with self.subTest(input_path=input_path):
+                result = self.tool(
+                    "snapshot",
+                    "--repo",
+                    os.fspath(self.repo),
+                    "--output",
+                    os.fspath(self.manifest),
+                    "--input",
+                    os.fspath(input_path),
+                )
+                payload = json.loads(result.stdout)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(payload["status"], "error")
+                self.assertIn(expected, payload["error"])
+                self.assertEqual(result.stderr, "")
+                self.assertEqual(self.manifest.read_text(encoding="utf-8"), "manifest sentinel\n")
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks are unavailable")
+    def test_output_rejects_links_and_other_types_without_mutation(self) -> None:
+        output_parent = self.base / "output-parent"
+        output_parent.mkdir()
+        target = output_parent / "target.json"
+        target.write_text("target sentinel\n", encoding="utf-8")
+        regular_link = output_parent / "regular-link.json"
+        dangling_link = output_parent / "dangling-link.json"
+        loop = output_parent / "loop"
+        os.symlink(target.name, regular_link)
+        os.symlink("missing.json", dangling_link)
+        os.symlink(loop.name, loop)
+
+        cases = (
+            (regular_link, "must not be a symlink", target),
+            (dangling_link, "must not be a symlink", dangling_link),
+            (output_parent, "missing or a regular file", output_parent),
+            (loop / "candidate.json", "cannot be resolved", loop),
+        )
+        for output, expected, unchanged in cases:
+            with self.subTest(output=output):
+                before_link = os.readlink(unchanged) if unchanged.is_symlink() else None
+                before_text = target.read_text(encoding="utf-8")
+                result = self.tool(
+                    "snapshot",
+                    "--repo",
+                    os.fspath(self.repo),
+                    "--output",
+                    os.fspath(output),
+                )
+                payload = json.loads(result.stdout)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(payload["status"], "error")
+                self.assertIn(expected, payload["error"])
+                self.assertEqual(result.stderr, "")
+                self.assertEqual(target.read_text(encoding="utf-8"), before_text)
+                if before_link is not None:
+                    self.assertTrue(unchanged.is_symlink())
+                    self.assertEqual(os.readlink(unchanged), before_link)
+
+        existing_regular = output_parent / "existing-regular.json"
+        existing_regular.write_text("replaceable manifest\n", encoding="utf-8")
+        result = self.tool(
+            "snapshot",
+            "--repo",
+            os.fspath(self.repo),
+            "--output",
+            os.fspath(existing_regular),
+        )
+        payload = json.loads(result.stdout)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(payload["status"], "snapshotted")
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(json.loads(existing_regular.read_text(encoding="utf-8"))["schema_version"], 2)
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks are unavailable")
+    def test_output_parent_alias_resolves_and_output_overlap_fails_closed(self) -> None:
+        stable_parent = self.base / "stable-output-parent"
+        stable_parent.mkdir()
+        alias_parent = self.base / "output-parent-alias"
+        os.symlink(stable_parent, alias_parent)
+        output = alias_parent / "candidate.json"
+        snapshot = self.tool(
+            "snapshot",
+            "--repo",
+            os.fspath(self.repo),
+            "--output",
+            os.fspath(output),
+        )
+        payload = json.loads(snapshot.stdout)
+        self.assertEqual(snapshot.returncode, 0, snapshot.stdout + snapshot.stderr)
+        self.assertEqual(payload["manifest"], os.fspath(stable_parent / "candidate.json"))
+        self.assertEqual(snapshot.stderr, "")
+
+        bound = self.base / "bound-input.txt"
+        bound.write_text("bound sentinel\n", encoding="utf-8")
+        for output_path, input_path in (
+            (bound, bound),
+            (self.base / "hardlink-output.json", bound),
+        ):
+            if output_path != bound:
+                os.link(bound, output_path)
+            before = bound.read_text(encoding="utf-8")
+            result = self.tool(
+                "snapshot",
+                "--repo",
+                os.fspath(self.repo),
+                "--output",
+                os.fspath(output_path),
+                "--input",
+                os.fspath(input_path),
+            )
+            with self.subTest(output=output_path):
+                payload = json.loads(result.stdout)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(payload["status"], "error")
+                self.assertIn("explicit candidate input", payload["error"])
+                self.assertEqual(result.stderr, "")
+                self.assertEqual(bound.read_text(encoding="utf-8"), before)
+
     def test_manifest_failures_and_output_inside_repo_fail_closed(self) -> None:
         result = self.tool(
             "snapshot",
@@ -197,6 +388,25 @@ class CandidateToolTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertEqual(json.loads(result.stdout)["status"], "error")
         self.assertFalse((self.repo / "candidate.json").exists())
+
+        self.snapshot()
+        value = json.loads(self.manifest.read_text(encoding="utf-8"))
+        value["schema_version"] = 1
+        self.manifest.write_text(json.dumps(value), encoding="utf-8")
+        result, payload = self.verify()
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(payload["status"], "error")
+        self.assertIn("regenerate, reverify, and rereview", payload["error"])
+        self.assertEqual(result.stderr, "")
+
+        for value in ([], None, "not an object"):
+            with self.subTest(top_level=value):
+                self.manifest.write_text(json.dumps(value), encoding="utf-8")
+                result, payload = self.verify()
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(payload["status"], "error")
+                self.assertIn("top-level value", payload["error"])
+                self.assertEqual(result.stderr, "")
 
         self.manifest.write_text("{not-json", encoding="utf-8")
         result, payload = self.verify()
@@ -432,6 +642,8 @@ class CandidateToolTests(unittest.TestCase):
     def test_symlink_loop_cli_paths_fail_with_structured_exit_two(self) -> None:
         first = self.base / "loop-a"
         second = self.base / "loop-b"
+        repo_output = self.base / "repo-loop-manifest.json"
+        input_output = self.base / "input-loop-manifest.json"
         os.symlink(second.name, first)
         os.symlink(first.name, second)
         cases = [
@@ -440,7 +652,7 @@ class CandidateToolTests(unittest.TestCase):
                 "--repo",
                 os.fspath(first),
                 "--output",
-                os.fspath(self.manifest),
+                os.fspath(repo_output),
             ),
             (
                 "snapshot",
@@ -454,7 +666,7 @@ class CandidateToolTests(unittest.TestCase):
                 "--repo",
                 os.fspath(self.repo),
                 "--output",
-                os.fspath(self.manifest),
+                os.fspath(input_output),
                 "--input",
                 os.fspath(first / "child"),
             ),
@@ -462,10 +674,17 @@ class CandidateToolTests(unittest.TestCase):
         ]
         for arguments in cases:
             with self.subTest(arguments=arguments):
+                before_first = os.readlink(first)
+                before_second = os.readlink(second)
                 result = self.tool(*arguments)
+                payload = json.loads(result.stdout)
                 self.assertEqual(result.returncode, 2)
-                self.assertEqual(json.loads(result.stdout)["status"], "error")
+                self.assertEqual(payload["status"], "error")
                 self.assertEqual(result.stderr, "")
+                self.assertEqual(os.readlink(first), before_first)
+                self.assertEqual(os.readlink(second), before_second)
+                self.assertFalse(os.path.lexists(repo_output))
+                self.assertFalse(os.path.lexists(input_output))
 
     @unittest.skipUnless(hasattr(os, "symlink"), "symlinks are unavailable")
     def test_repository_parent_symlink_fails_closed(self) -> None:

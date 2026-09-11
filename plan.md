@@ -1,4 +1,4 @@
-# Sol Advisor 0.7.0 implementation plan
+# Sol Advisor 0.7.1 implementation plan
 
 ## Outcome
 
@@ -12,13 +12,15 @@ root verification, stable-candidate evidence, and resumable closure records.
 - Extend the orchestration and role contracts without making heavy artifacts mandatory
   for routine work.
 - Add a convergence reference for acceptance, impact-surface, closure, and resume records.
-- Add a deterministic candidate snapshot/verification tool. It checks reviewed worktree
+- Harden the deterministic candidate snapshot/verification tool: explicit inputs must use
+  stable parent paths, manifest outputs must not overwrite selected inputs, and a formal
+  verification can require the earlier reviewed candidate ID. It checks reviewed worktree
   bytes, executable state, and relevant Git index mode/object IDs, but does not infer
   correctness, root cause, or enforced isolation.
 - Preserve existing role TOMLs, installer behavior, route names, verdicts, and selected-role
   runtime checks.
-- Update the local plugin version to 0.7.0 and document Python 3 as a candidate-tool
-  dependency.
+- Update the local plugin version to 0.7.1, candidate schema to version 2, and document
+  only Python versions actually exercised by the candidate behavior suite.
 
 ## Verification
 

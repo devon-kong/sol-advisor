@@ -109,22 +109,27 @@ prior verdict; re-verify and obtain a new fresh review as required by SKILL.md.
 
 ## Stable candidate binding
 
-For `audit` and `full`, bind root verification and review to the same candidate. Use the
-shipped tool for a Git working tree when its inventory covers the reviewed inputs:
+For `audit` and `full`, bind root verification, the reviewer return, and final acceptance
+to the same candidate. Use the shipped tool for a Git working tree when its inventory
+covers the reviewed inputs:
 
 ~~~sh
 skill_dir=<directory-containing-this-SKILL.md>
 candidate_tool="$skill_dir/../../scripts/candidate.py"
-python3 "$candidate_tool" snapshot --repo "$repo" --output "$manifest"
-python3 "$candidate_tool" verify --manifest "$manifest"
+candidate_id="$(python3 "$candidate_tool" snapshot --repo "$repo" --output "$manifest" | jq -er '.candidate_id | select(type == "string")')"
+python3 "$candidate_tool" verify --manifest "$manifest" --expected-candidate-id "$candidate_id"
 ~~~
 
 The manifest must live outside the candidate repository. Snapshot includes tracked files,
 unignored untracked files, actual worktree bytes and executable state, and each supported
 tracked entry's Git index mode and object ID. Add each ignored or repository-external input
-that affects acceptance with a repeatable `--input <path>`. Record the acceptance version,
+that affects acceptance with a repeatable `--input <path>`. Explicit inputs reject a
+symlinked parent directory so a mutable alias cannot silently bind a different file; a
+final-component symlink remains bound by its target text. Record the acceptance version,
 candidate ID, evidence references, and relevant runtime facts separately; generated logs
-and caches do not belong in the candidate unless they affect the conclusion.
+and caches do not belong in the candidate unless they affect the conclusion. Candidate
+manifests use schema version 2; version 1 is rejected with instructions to regenerate,
+reverify, and rereview rather than migrated.
 
 Unreadable files, directories, Git links/submodules, symlinked repository parents, devices,
 sockets, and other unsupported input types fail comparison instead of being silently
@@ -132,12 +137,16 @@ omitted. Bind a submodule commit or other compound artifact separately when it a
 acceptance. A final symlink is bound by its target text; bind the target separately when its
 contents affect the conclusion.
 
-Verify immediately before review, after review, and before final acceptance. Exit `0`
-means the selected bytes and metadata still match, `1` reports changed paths, and `2`
-means comparison could not be established. Only `0` supports reuse of the verdict. The
-tool treats HEAD as source information rather than proof, and it does not prove semantic
-correctness, reviewer isolation, or absence of a temporary mutation that was later
-restored.
+Verify immediately before review, after review, and before final acceptance with the
+original `candidate_id` passed as `--expected-candidate-id`. Exit `0` means the selected
+bytes and metadata still match that exact reviewed candidate, `1` reports changed paths or
+an expected-ID mismatch, and `2` means comparison could not be established. Only `0`
+supports reuse of the verdict. The reviewer must return `REVIEWED_CANDIDATE` equal to the
+root-verified `candidate_id`; root final acceptance requires that returned value and the
+final expected ID to be identical. Root must not derive the final expected ID from a
+regenerated or current manifest after review. The tool treats HEAD as source
+information rather than proof, and it does not prove semantic correctness, reviewer
+isolation, or absence of a temporary mutation that was later restored.
 
 If review begins on one candidate and any selected input changes, stop using that verdict.
 Create a new snapshot only after correction and root re-verification. Preserve any
@@ -156,6 +165,8 @@ git status --short
 git diff --stat
 ~~~
 
-The verifier covers the v0.7.0 manifest, exact role inventory/pins, installer safety and
+The verifier covers the v0.7.1 manifest, exact role inventory/pins, installer safety and
 selected-role isolation, all runtime-role fixtures, route and convergence contracts,
-candidate-tool behavior, README scope, JSON/TOML parsing, and shell/Python syntax.
+candidate-tool behavior, README scope, JSON/TOML parsing, and shell/Python syntax. The
+candidate behavior suite was verified on Python 3.12 and Python 3.14; do not treat that
+as evidence for untested Python versions.

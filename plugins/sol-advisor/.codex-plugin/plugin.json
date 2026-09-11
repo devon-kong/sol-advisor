@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Codex-native selective routing with evidence-led convergence and candidate-bound review.",
   "author": {"name": "Daniel McAteer", "url": "https://github.com/DannyMac180"},
   "homepage": "https://github.com/DannyMac180/sol-advisor#readme",

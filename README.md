@@ -7,8 +7,9 @@ delegation, verification, and acceptance.
 ## Install from GitHub
 
 You need a current Codex CLI or ChatGPT desktop app with plugins enabled, native
-custom-agent support, jq, and Python 3. Luna / Max, Terra / High, or Reviewer Sol / High
-access is needed only when that auxiliary is used.
+custom-agent support, jq, and Python 3. The candidate behavior suite is verified on Python
+3.12 and 3.14; other Python versions are not claimed here. Luna / Max, Terra / High, or
+Reviewer Sol / High access is needed only when that auxiliary is used.
 
 ~~~sh
 codex plugin marketplace add devon-kong/sol-advisor --ref main
@@ -50,6 +51,9 @@ appears, it checks causally related entry points and separates implementation er
 evidence, architecture, environment, or review failures. Repeated corrections must change
 the failed method and seek new evidence. Reviewed Git work is bound to an exact candidate
 snapshot so a verdict cannot silently carry over to changed bytes.
+
+For a reviewed route, final acceptance verifies the original candidate ID rather than a
+newly regenerated candidate. This keeps a valid review attached to the bytes it inspected.
 
 ## Updating
 
