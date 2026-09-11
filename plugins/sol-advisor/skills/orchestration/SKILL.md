@@ -5,15 +5,18 @@ description: "Codex-native risk-gated selective routing: default solo delivery, 
 
 # Sol Advisor Orchestration
 
-Act as the architect. Own the user's intent, architecture, route choice, decomposition,
-implementation or delegation, parent verification, escalation decisions, and final
-acceptance. Selective routing has four exact modes: `solo`, `delegate`, `audit`, and
-`full`. Solo is the default. One auxiliary agent is the default maximum; full is an
+Act as the architect. Own the user's intent, acceptance basis, architecture, route choice,
+decomposition, implementation or delegation, root verification, correction decisions,
+and final acceptance. Selective routing has four exact modes: `solo`, `delegate`, `audit`,
+and `full`. Solo is the default. One auxiliary agent is the default maximum; full is an
 explicit broad or high-risk exception.
 
 Read [references/role-contracts.md](references/role-contracts.md) before the first
-delegation. Use [references/operations.md](references/operations.md) for exact spawn,
-preflight, runtime-evidence, isolation, and maintainer procedures.
+delegation or review. Use [references/operations.md](references/operations.md) for exact
+spawn, preflight, runtime evidence, candidate binding, isolation, and maintainer
+procedures. For high-risk, cross-module, long-running, resumed, or correction-loop work,
+read [references/convergence.md](references/convergence.md) and use only the artifacts the
+task needs.
 
 ## Declare the route before task tools
 
@@ -61,19 +64,37 @@ risk, wide blast radius, or misclassification. A corrected Luna attempt is reser
 for a specification error and is not a prerequisite for Terra. Any route change must
 be declared and evidenced; do not silently downgrade.
 
+## Establish one acceptance basis
+
+Before implementation, translate the user goal and repository contracts into one
+traceable acceptance basis: observable outcome, preserved behavior, material quality
+targets, allowed scope, excluded scope, evidence needed, and unverified assumptions.
+This is an interpretation of the goal, not permission to replace it, lower its standard,
+or widen authority. Explore first when a material assumption is cheaply testable.
+
+Keep this basis in the task prompt for routine work. Use the compact artifact in the
+convergence reference only when multiple handoffs, risk, or task length makes continuity
+valuable. For cross-module delivery, prove an early path through real module boundaries;
+replace only genuine external boundaries such as the network. Choose evidence for the
+claim: integration is not automatically stronger than a targeted concurrency or recovery
+test.
+
 ## Keep root responsibilities with the root
 
 Keep these responsibilities with the root:
 
-- Resolve requirements and material ambiguity.
+- Resolve requirements, material ambiguity, and conflicts in the acceptance basis.
 - Choose architecture, interfaces, decomposition, and selective route.
-- Write the complete five-part worker specification for any selected implementer.
+- Write the complete worker specification for any selected implementer.
 - Inspect the actual diff and rerun verification.
+- Independently derive at least one check for each material risk instead of only replaying
+  implementer evidence.
+- Separate inspected, confirmed-affected, and authorized-to-change surfaces.
 - Decide whether newly observed risk warrants escalation.
 - Judge the reviewer verdict when the route includes review and accept the deliverable.
 
-Every worker prompt must contain OBJECTIVE, FILES AND OWNERSHIP, INTERFACES,
-CONSTRAINTS, VERIFICATION, and the structured implementation return in
+Every worker prompt must contain OBJECTIVE AND ACCEPTANCE, FILES AND OWNERSHIP,
+INTERFACES, CONSTRAINTS, VERIFICATION, and the structured implementation return in
 [the role contracts](references/role-contracts.md). State the exact owned files,
 preserve concurrent edits, and never silently widen scope.
 
@@ -81,9 +102,38 @@ Treat worker reports as claims. Confirm the complete diff, changed-file scope, r
 checks, and artifact/runtime evidence as the root. Do not duplicate the selected
 implementer's work.
 
+## Close findings by cause and evidence
+
+Apply the same handling to findings from implementation, root verification, and review:
+
+- Implementation behavior violates acceptance: identify the supported cause, inspect
+  causally related surfaces, correct within authority, and verify.
+- Test or evidence is insufficient: improve the proof; do not change production behavior
+  without evidence of an implementation defect.
+- Architecture or acceptance terms cannot all hold: the root resolves the design or scope;
+  do not send the unchanged specification back for another local patch.
+- Environment or tool capability is missing: restore the condition or block only the
+  affected stage.
+- Candidate, role, isolation, or review evidence is invalid: reject that verdict, preserve
+  any independently reproducible finding, stabilize the conditions, and review again.
+- A suggestion is outside accepted scope: record it separately; it is not a required fix.
+
+On the first defect, inspect the causally related surface. For a rule shared across entry
+points, enumerate its actual consumers and record affected, excluded, unverified, or
+out-of-authority status. For validation, recovery, and fail-closed changes, check an
+adjacent valid path as well as the rejected path. A shared label alone does not establish
+a shared cause or authorize a common abstraction.
+
+When new evidence falsifies a prior closure claim, do not repeat the same correction loop.
+Before the next attempt, state what the prior reasoning missed, what method now changes,
+and what new evidence the attempt should produce. If the mechanism is already shown
+infeasible, rethink immediately rather than waiting for a repeat count. Rejecting a
+finding requires counterevidence or an explicit acceptance-basis citation; changing
+reviewers never clears an unresolved valid finding.
+
 ## Review only when the route includes it
 
-For `audit` and `full`, after parent verification, spawn a new native Sol / High
+For `audit` and `full`, after root verification, spawn a new native Sol / High
 reviewer. The reviewer must remain behaviorally read-only, inspect the actual
 accumulated diff, and return exactly ship, fix-first, or rethink. A reviewer never
 implements its own fixes. `solo` and `delegate` do not receive a fresh reviewer.
@@ -101,3 +151,9 @@ implements its own fixes. `solo` and `delegate` do not receive a fresh reviewer.
 Any implementation correction invalidates the prior verdict. Apply the observed sandbox
 and permission profile rules in the operations reference; never claim enforced
 read-only isolation when it was not observed.
+
+For `audit` and `full`, acceptance requires the frozen acceptance basis, resolved blocking
+findings, root verification against the same candidate, and a valid fresh `ship`. For
+`solo` and `delegate`, apply the same acceptance basis and root evidence without adding a
+reviewer. A time or retry limit may produce an honest partial or blocked result; it never
+turns unmet acceptance into completion.

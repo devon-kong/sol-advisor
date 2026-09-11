@@ -1,0 +1,77 @@
+# Convergence records
+
+Use these compact records for high-risk, cross-module, long-running, resumed, or repeated
+correction work. Routine work can keep the same facts inline. These records support
+judgment; completed fields are not proof by themselves.
+
+## Acceptance basis
+
+~~~text
+ACCEPTANCE VERSION: <stable label>
+OUTCOME: <observable user or system result>
+PRESERVE: <interfaces, valid paths, safety properties, and quality targets>
+AUTHORITY: <allowed files and actions>
+EXCLUDED: <explicit non-goals and prohibited actions>
+EVIDENCE: <claim -> required behavioral, integration, benchmark, or inspection evidence>
+ASSUMPTIONS: <fact/source, or unverified hypothesis and planned check>
+~~~
+
+User instructions and repository contracts remain authoritative. Record their source.
+Reasonable implementation choices may be settled within granted authority. A product
+change, lower acceptance standard, or wider permission requires new authority rather than
+an edited acceptance record.
+
+## Impact surface
+
+For a local defect, prose is enough. When a mechanism or rule has multiple consumers,
+record the minimum auditable table:
+
+~~~text
+RULE OR MECHANISM: <what causally connects the locations>
+LOCATION | STATUS | REQUIREMENT | EVIDENCE | AUTHORITY
+<entry>  | affected | ... | ... | allowed
+<entry>  | excluded | ... | ... | n/a
+<entry>  | unverified | ... | missing | allowed
+<entry>  | affected | ... | ... | out-of-scope
+~~~
+
+Inspection scope may be broader than confirmed impact, and confirmed impact may be
+broader than mutation authority. Do not collapse these sets. Search results are inventory
+evidence; they do not prove runtime semantics.
+
+## Closure record
+
+After correcting a material finding, record:
+
+~~~text
+OBSERVED: <concrete failure and consequence>
+CAUSE: <supported explanation and confidence>
+SURFACE: <affected and explicitly excluded consumers>
+CHANGE: <what was corrected and why>
+EVIDENCE: <commands, artifacts, and independently derived root check>
+UNVERIFIED: <remaining uncertainty or none>
+~~~
+
+If later evidence contradicts `CAUSE`, `SURFACE`, or `EVIDENCE`, identify the exact
+closure claim it falsifies. The next attempt must change the design, inventory, harness,
+or other relevant method and name the new information it seeks. A different prompt with
+the same method is not a changed attempt.
+
+## Resume record
+
+Use an existing handoff or status artifact when one exists. Otherwise keep one short
+record separate from candidate inputs that need to remain stable:
+
+~~~text
+ACCEPTANCE: <version and source>
+CANDIDATE: <candidate ID and manifest, or explicit artifact identifiers>
+OPEN: <unresolved blocking findings>
+LAST CLOSURE: <claim and evidence>
+FALSIFIED: <new evidence that changed the prior conclusion, or none>
+NEXT: <method, expected new information, and owner>
+STOP: <budget, retry, authority, or human-input boundary>
+~~~
+
+On resume, compare the record to current files and evidence. Do not carry forward a
+`ship`, accepted state, or closure claim when its candidate or supporting conditions no
+longer match.

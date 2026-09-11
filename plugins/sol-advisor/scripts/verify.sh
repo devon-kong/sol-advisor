@@ -11,11 +11,14 @@ plugin_dir=$(CDPATH= cd "$script_dir/.." && pwd) || exit 1
 repo_dir=$(CDPATH= cd "$plugin_dir/../.." && pwd) || exit 1
 installer=$script_dir/install-agents.sh
 runtime_inspector=$script_dir/inspect-agent-runtime.sh
+candidate_tool=$script_dir/candidate.py
 templates=$plugin_dir/agents
 manifest=$plugin_dir/.codex-plugin/plugin.json
 skill=$plugin_dir/skills/orchestration/SKILL.md
 contracts=$plugin_dir/skills/orchestration/references/role-contracts.md
 operations=$plugin_dir/skills/orchestration/references/operations.md
+convergence=$plugin_dir/skills/orchestration/references/convergence.md
+candidate_tests=$plugin_dir/tests
 readme=$repo_dir/README.md
 ui=$plugin_dir/skills/orchestration/agents/openai.yaml
 
@@ -155,7 +158,7 @@ V050_TERRA
   [ "$(shasum -a 256 "$target/$terra_file" | awk '{print $1}')" = "$legacy_terra_v050_sha256" ] || fail "v0.5.0 Terra fixture digest drifted"
 }
 
-for required in "$installer" "$runtime_inspector" "$manifest" "$skill" "$contracts" "$operations" "$readme" "$ui"; do
+for required in "$installer" "$runtime_inspector" "$candidate_tool" "$manifest" "$skill" "$contracts" "$operations" "$convergence" "$readme" "$ui"; do
   test -f "$required" || fail "required file missing: $required"
 done
 pass "required files present"
@@ -166,10 +169,10 @@ grep -Fq 'SELECTIVE ROUTE' "$ui" || fail "UI metadata default prompt omits route
 pass "UI metadata exposes orchestration and its default route prompt"
 
 jq empty "$manifest"
-[ "$(jq -r '.version' "$manifest")" = 0.6.1 ] || fail "manifest version is not 0.6.1"
+[ "$(jq -r '.version' "$manifest")" = 0.7.0 ] || fail "manifest version is not 0.7.0"
 grep -Fq 'SELECTIVE ROUTE' "$manifest" || fail "manifest omits route declaration"
 grep -Fq 'Spawned auxiliary evidence is fail-closed' "$manifest" || fail "manifest omits auxiliary fail-closed rule"
-pass "manifest JSON and v0.6.1 discovery copy"
+pass "manifest JSON and v0.7.0 discovery copy"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path
@@ -453,8 +456,10 @@ for document in "$contracts" "$operations"; do
   if grep -Eq '^[[:space:]]*(model|reasoning_effort):' "$document"; then fail "per-spawn override remains in $document"; fi
 done
 grep -Fq 'references/operations.md' "$skill" || fail "skill does not link operations reference"
+grep -Fq 'references/convergence.md' "$skill" || fail "skill does not link convergence reference"
 grep -Fq '../../scripts/install-agents.sh' "$operations" || fail "operations does not resolve installer relatively"
 grep -Fq '../../scripts/inspect-agent-runtime.sh' "$operations" || fail "operations does not resolve inspector relatively"
+grep -Fq '../../scripts/candidate.py' "$operations" || fail "operations does not resolve candidate tool relatively"
 grep -Fq 'SELECTIVE ROUTE' "$skill" || fail "skill omits route declaration"
 grep -Fq 'mode: solo | delegate | audit | full' "$skill" || fail "skill omits exact route modes"
 grep -Fq 'No task tool call may precede this declaration' "$skill" || fail "skill permits tool-before-route"
@@ -485,7 +490,24 @@ grep -Fq '`solo` and `delegate` do not receive a fresh reviewer' "$skill" || fai
 grep -Fq 'audit: the root implements the required correction, re-verifies, and obtains a new' "$skill" || fail "skill does not assign audit corrections to root"
 grep -Fq 'full: the selected implementer handles the required correction, the root' "$skill" || fail "skill does not assign full corrections to selected implementer"
 if grep -Fq 'fix-first: delegate the required correction' "$skill"; then fail "skill retains unconditional fix-first delegation"; fi
-pass "route, active-role, escalation, review, and correction contracts"
+for phrase in \
+  'OBJECTIVE AND ACCEPTANCE' \
+  'IMPACT SURFACE' \
+  'EVIDENCE MAP' \
+  'UNVERIFIED' \
+  'CLASS: implementation | verification | architecture-contract | environment | candidate-review' \
+  'REQUIRED NEXT ACTION'; do
+  grep -Fq "$phrase" "$contracts" || fail "role contracts omit: $phrase"
+done
+for phrase in \
+  'ACCEPTANCE VERSION' \
+  'RULE OR MECHANISM' \
+  'OBSERVED:' \
+  'FALSIFIED:' \
+  'the same method is not a changed attempt'; do
+  grep -Fq "$phrase" "$convergence" || fail "convergence reference omits: $phrase"
+done
+pass "route, acceptance, impact-surface, review, and correction contracts"
 
 for phrase in \
   'agent_type: sol_advisor_luna_implementer' \
@@ -536,14 +558,27 @@ print("two companion install examples are fail-closed and guarded")
 PY
 pass "README is concise, user-first, route-tabled, and keeps maintainer machinery out"
 
-if rg -n 'sol_advisor_terra_max|sol-advisor-terra-max' "$templates" "$skill" "$contracts" "$operations"; then
+if rg -n 'sol_advisor_terra_max|sol-advisor-terra-max|sol_advisor_terra_tester|sol-advisor-terra-tester' \
+  "$templates" "$skill" "$contracts" "$operations" "$convergence"; then
   fail "forbidden second Terra role remains"
 fi
 pass "current role inventory has no second Terra interface"
+
+test -d "$candidate_tests" || fail "candidate behavior tests are missing"
+python3 - "$candidate_tool" "$candidate_tests/test_candidate.py" <<'PY'
+from pathlib import Path
+import sys
+
+for value in sys.argv[1:]:
+    path = Path(value)
+    compile(path.read_bytes(), str(path), "exec")
+PY
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$candidate_tests" -p 'test_*.py'
+pass "candidate snapshot and verification behavior"
 
 sh -n "$installer"
 sh -n "$runtime_inspector"
 sh -n "$script_dir/verify.sh"
 pass "shell syntax"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor v0.6.1 selective routing checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor v0.7.0 convergence checks completed in $tmp_dir"

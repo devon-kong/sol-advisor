@@ -7,8 +7,8 @@ delegation, verification, and acceptance.
 ## Install from GitHub
 
 You need a current Codex CLI or ChatGPT desktop app with plugins enabled, native
-custom-agent support, and jq. Luna / Max, Terra / High, or Reviewer Sol / High access
-is needed only when that auxiliary is used.
+custom-agent support, jq, and Python 3. Luna / Max, Terra / High, or Reviewer Sol / High
+access is needed only when that auxiliary is used.
 
 ~~~sh
 codex plugin marketplace add devon-kong/sol-advisor --ref main
@@ -44,6 +44,12 @@ manage a lane.
 Auxiliary work substitutes for root work; it does not duplicate it. The root inspects
 the complete diff and reruns the requested checks. When the selected route includes a
 review, the Reviewer returns ship, fix-first, or rethink; any fix requires a new review.
+
+The root also keeps one acceptance basis across implementation and review. When a defect
+appears, it checks causally related entry points and separates implementation errors from
+evidence, architecture, environment, or review failures. Repeated corrections must change
+the failed method and seek new evidence. Reviewed Git work is bound to an exact candidate
+snapshot so a verdict cannot silently carry over to changed bytes.
 
 ## Updating
 

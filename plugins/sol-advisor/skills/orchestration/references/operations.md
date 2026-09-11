@@ -1,9 +1,9 @@
 # Native operations
 
 This reference owns role pins, spawn mechanics, companion installation, selected-role
-preflight, runtime evidence, reviewer isolation, and maintainer verification. Route
-selection and root responsibilities belong to [SKILL.md](../SKILL.md); worker and
-reviewer prompts belong to [role-contracts.md](role-contracts.md).
+preflight, runtime evidence, candidate binding, reviewer isolation, and maintainer
+verification. Route selection and root responsibilities belong to [SKILL.md](../SKILL.md);
+worker and reviewer prompts belong to [role-contracts.md](role-contracts.md).
 
 ## Role pins and spawn mechanics
 
@@ -107,6 +107,44 @@ policy and permission profile:
 A Reviewer returns exactly `ship`, `fix-first`, or `rethink`. A fix invalidates the
 prior verdict; re-verify and obtain a new fresh review as required by SKILL.md.
 
+## Stable candidate binding
+
+For `audit` and `full`, bind root verification and review to the same candidate. Use the
+shipped tool for a Git working tree when its inventory covers the reviewed inputs:
+
+~~~sh
+skill_dir=<directory-containing-this-SKILL.md>
+candidate_tool="$skill_dir/../../scripts/candidate.py"
+python3 "$candidate_tool" snapshot --repo "$repo" --output "$manifest"
+python3 "$candidate_tool" verify --manifest "$manifest"
+~~~
+
+The manifest must live outside the candidate repository. Snapshot includes tracked files,
+unignored untracked files, actual worktree bytes and executable state, and each supported
+tracked entry's Git index mode and object ID. Add each ignored or repository-external input
+that affects acceptance with a repeatable `--input <path>`. Record the acceptance version,
+candidate ID, evidence references, and relevant runtime facts separately; generated logs
+and caches do not belong in the candidate unless they affect the conclusion.
+
+Unreadable files, directories, Git links/submodules, symlinked repository parents, devices,
+sockets, and other unsupported input types fail comparison instead of being silently
+omitted. Bind a submodule commit or other compound artifact separately when it affects
+acceptance. A final symlink is bound by its target text; bind the target separately when its
+contents affect the conclusion.
+
+Verify immediately before review, after review, and before final acceptance. Exit `0`
+means the selected bytes and metadata still match, `1` reports changed paths, and `2`
+means comparison could not be established. Only `0` supports reuse of the verdict. The
+tool treats HEAD as source information rather than proof, and it does not prove semantic
+correctness, reviewer isolation, or absence of a temporary mutation that was later
+restored.
+
+If review begins on one candidate and any selected input changes, stop using that verdict.
+Create a new snapshot only after correction and root re-verification. Preserve any
+independently reproducible finding from an invalid review. For non-Git or artifact-only
+work, bind explicit immutable artifact identifiers and hashes instead of creating a Git
+repository solely for this protocol.
+
 ## Maintainer verification
 
 From the repository root, run:
@@ -118,6 +156,6 @@ git status --short
 git diff --stat
 ~~~
 
-The verifier covers the v0.6.1 manifest, exact role inventory/pins, installer safety
-and selected-role isolation, all runtime-role fixtures, route contracts, README scope,
-JSON/TOML parsing, and shell syntax.
+The verifier covers the v0.7.0 manifest, exact role inventory/pins, installer safety and
+selected-role isolation, all runtime-role fixtures, route and convergence contracts,
+candidate-tool behavior, README scope, JSON/TOML parsing, and shell/Python syntax.

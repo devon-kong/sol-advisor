@@ -3,8 +3,9 @@
 Use these contracts with Sol Advisor's namespaced, role-pinned native custom agents.
 They do not launch a nested Codex CLI or change global default-agent routing. Route
 selection, root responsibilities, escalation, and correction rules belong to
-[SKILL.md](../SKILL.md). Use [operations.md](operations.md) for selected-role preflight,
-runtime evidence, isolation, and maintainer commands.
+[SKILL.md](../SKILL.md). Use [convergence.md](convergence.md) for conditional acceptance,
+impact, closure, and resume records. Use [operations.md](operations.md) for selected-role
+preflight, runtime evidence, candidate binding, isolation, and maintainer commands.
 
 Before any spawn, follow the declared route and preflight only the active role. After
 each spawn, accept its result only after verifying that exact returned thread. The TOMLs
@@ -12,11 +13,12 @@ pin model and effort, so omit native per-spawn overrides.
 
 ## Shared implementation contract
 
-Every Luna or Terra prompt must contain all five sections:
+Every Luna or Terra prompt must contain these sections:
 
 ~~~text
-OBJECTIVE
-<Observable outcome and why it matters.>
+OBJECTIVE AND ACCEPTANCE
+<Observable outcome, acceptance version or inline basis, preserved behavior, and evidence
+needed. Distinguish sourced requirements from unverified assumptions.>
 
 FILES AND OWNERSHIP
 You own only:
@@ -37,6 +39,7 @@ VERIFICATION
   Success: <concrete expected result>
 - Inspect: <exact file, diff, or generated artifact>
   Success: <concrete expected evidence>
+- Root check needed: <material risk the root should verify independently, or none>
 
 RETURN
 Return exact commands and actual evidence. A completion claim without evidence is invalid.
@@ -45,7 +48,11 @@ IMPLEMENTATION REPORT
 STATUS: complete | partial | blocked
 OBJECTIVE: <one-line restatement>
 CHANGES: <file-by-file summary from the actual diff>
+IMPACT SURFACE: <causally related locations: affected, excluded, unverified, or outside
+authority; use the convergence table only when multiple consumers make it useful>
+EVIDENCE MAP: <acceptance claim -> actual evidence>
 VERIFIED: <exact commands plus concrete output evidence>
+UNVERIFIED: <claims not established by the evidence, or none>
 JUDGMENT CALLS: <decisions the specification left open, or none>
 GAPS: <unfinished work, ambiguity, or none>
 ~~~
@@ -122,8 +129,15 @@ fixes, or broaden scope.
 STATED GOAL
 <The user's requested outcome.>
 
+ACCEPTANCE BASIS
+<Versioned or inline outcome, preserved behavior, authority, exclusions, evidence, and
+material assumptions.>
+
 ACCUMULATED CHANGE SET
 <Exact allowed files plus complete working-tree diff, or explicit base/head revisions.>
+
+CANDIDATE
+<Candidate ID and manifest or other exact artifact identifiers.>
 
 INTERFACES AND CONSTRAINTS
 - <Compatibility, repository rules, safety boundaries, and excluded scope.>
@@ -135,11 +149,23 @@ VERIFICATION EVIDENCE
 REVIEW
 Inspect the actual files and accumulated change set. Judge correctness, completeness,
 regressions, scope discipline, interface preservation, test adequacy, and material risk.
+Derive findings from the acceptance basis and actual evidence. A proposed remedy is not
+proof of the finding. Keep scope-only improvements out of required findings.
+
+For each finding return:
+FINDING: <stable task-local ID>
+CLASS: implementation | verification | architecture-contract | environment | candidate-review
+REQUIREMENT: <acceptance-basis citation>
+IMPACT: <concrete consequence>
+EVIDENCE: <reproduction, file reference, or explicit reasoning>
+RELATED SURFACE: <causally related consumers to inspect, without assuming all are affected>
+OWNERSHIP: implementer | root | environment | review
+REQUIRED NEXT ACTION: <outcome needed; separate an optional remedy suggestion>
 
 REVIEW RESULT
 VERDICT: ship | fix-first | rethink
 REASON: <decisive evidence-based reason>
-FINDINGS: <precise file references and required fixes, or none>
+FINDINGS: <structured findings above, or none>
 RESIDUAL RISK: <most important remaining risk, or none>
 ~~~
 
