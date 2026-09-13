@@ -1,0 +1,22 @@
+{
+  "state": {
+    "phase": "stopped",
+    "writes": 0
+  },
+  "before": {
+    "HANDOFF.md": "25cea8518be6529221886183feea52c5806bc361367cd24dbf8835bf299f633a",
+    "policy.py": "53c01326486ba76c25583153338b4d50d26295bcf3a4f3828c4f8ab746b31236",
+    "render.py": "9fa6817a0a328632ecb095855fe9cce8739b9d3224d29cbc837e3a2863152f01",
+    "worker.py": "170e41e9b54b467179bee7bebb69d3cefe22ffceb4696e1722a2eba1c79a3940",
+    "worker-state.json": "95a5ade2309b04675d6c3dc0ca89b0b47e90229560554fb4f949b4b228a9608f"
+  },
+  "after": {
+    "HANDOFF.md": "25cea8518be6529221886183feea52c5806bc361367cd24dbf8835bf299f633a",
+    "policy.py": "53c01326486ba76c25583153338b4d50d26295bcf3a4f3828c4f8ab746b31236",
+    "render.py": "9fa6817a0a328632ecb095855fe9cce8739b9d3224d29cbc837e3a2863152f01",
+    "worker.py": "170e41e9b54b467179bee7bebb69d3cefe22ffceb4696e1722a2eba1c79a3940",
+    "worker-state.json": "95a5ade2309b04675d6c3dc0ca89b0b47e90229560554fb4f949b4b228a9608f"
+  },
+  "stdout": "limit=20\n",
+  "stable": true
+}

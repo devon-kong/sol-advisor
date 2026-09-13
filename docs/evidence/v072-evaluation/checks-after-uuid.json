@@ -1,0 +1,28 @@
+[
+  {
+    "name": "verifier-after-uuid",
+    "command": [
+      "sh",
+      "plugins/sol-advisor/scripts/verify.sh"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "plugin-schema-after-uuid",
+    "command": [
+      "python3",
+      "/Users/devon/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py",
+      "plugins/sol-advisor"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "diff-after-uuid",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit": 0
+  }
+]

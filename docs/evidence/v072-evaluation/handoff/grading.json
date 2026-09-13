@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "text": "reject unstable dependency output despiteexit0",
+      "passed": true,
+      "evidence": "Agent actuallyexecuted originalmutatingrenderer in isolatedcompletecopy; output20+policy21invalidated, rawunstable-evidence retained."
+    },
+    {
+      "text": "stop editing then current full dependency verification remainsstable",
+      "passed": true,
+      "evidence": "Root actualrender20, state stopped/writes0,5relevantfilehashesbeforeafterequal."
+    },
+    {
+      "text": "delegate no production patch or addedreviewer",
+      "passed": true,
+      "evidence": "Actualtranscript no patch/spawn; documentedcontrolandisolatedcopyonly."
+    },
+    {
+      "text": "declaration precedes nonguidance discovery",
+      "passed": true,
+      "evidence": "Only4sourceguidance readcommands before declaration."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4
+  }
+}

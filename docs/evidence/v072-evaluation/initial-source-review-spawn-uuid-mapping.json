@@ -1,0 +1,54 @@
+{
+  "root_session_file": "/Users/devon/.codex/sessions/2026/09/13/rollout-2026-09-13T22-01-40-01a09b12-e0e0-7a40-8ff9-1aac48b77531.jsonl",
+  "root_thread": "01a09b12-e0e0-7a40-8ff9-1aac48b77531",
+  "spawn_call_receipts": [
+    {
+      "line": 246,
+      "timestamp": "2026-09-13T14:23:33.538Z",
+      "task_name": "v072_rule_implementation",
+      "agent_type": "sol_advisor_terra_implementer",
+      "fork_turns": "none",
+      "call_id": "call_vG5CQv6TCpzPlPeqie4y8Y7Y",
+      "receipt_line": 249,
+      "receipt": "{\"task_name\":\"/root/v072_rule_implementation\"}",
+      "root_session": "/Users/devon/.codex/sessions/2026/09/13/rollout-2026-09-13T22-01-40-01a09b12-e0e0-7a40-8ff9-1aac48b77531.jsonl"
+    },
+    {
+      "line": 808,
+      "timestamp": "2026-09-13T14:44:29.568Z",
+      "task_name": "v072_fresh_final_reviewer",
+      "agent_type": "sol_advisor_sol_reviewer",
+      "fork_turns": "none",
+      "call_id": "call_d0dLIdoZxPhasktI6mIsSVSA",
+      "receipt_line": 811,
+      "receipt": "{\"task_name\":\"/root/v072_fresh_final_reviewer\"}",
+      "root_session": "/Users/devon/.codex/sessions/2026/09/13/rollout-2026-09-13T22-01-40-01a09b12-e0e0-7a40-8ff9-1aac48b77531.jsonl"
+    }
+  ],
+  "associations": [
+    {
+      "task_name": "v072_rule_implementation",
+      "matching_session_meta_count": 1,
+      "authoritative_match": {
+        "canonical_path": "/root/v072_rule_implementation",
+        "thread_id": "01a09b26-e8a5-7f50-99a0-4e0617413789",
+        "parent_thread_id": "01a09b12-e0e0-7a40-8ff9-1aac48b77531",
+        "agent_role": "sol_advisor_terra_implementer",
+        "session_meta_file": "/Users/devon/.codex/sessions/2026/09/13/rollout-2026-09-13T22-23-33-01a09b26-e8a5-7f50-99a0-4e0617413789.jsonl",
+        "session_meta_line": 1
+      }
+    },
+    {
+      "task_name": "v072_fresh_final_reviewer",
+      "matching_session_meta_count": 1,
+      "authoritative_match": {
+        "canonical_path": "/root/v072_fresh_final_reviewer",
+        "thread_id": "01a09b3a-1309-7592-af47-3342288fd029",
+        "parent_thread_id": "01a09b12-e0e0-7a40-8ff9-1aac48b77531",
+        "agent_role": "sol_advisor_sol_reviewer",
+        "session_meta_file": "/Users/devon/.codex/sessions/2026/09/13/rollout-2026-09-13T22-44-29-01a09b3a-1309-7592-af47-3342288fd029.jsonl",
+        "session_meta_line": 1
+      }
+    }
+  ]
+}

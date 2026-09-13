@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "greeting output ('Ada', False)",
+      "passed": true,
+      "evidence": "'Hello, Ada'"
+    },
+    {
+      "text": "greeting output ('Ada', True)",
+      "passed": true,
+      "evidence": "'HELLO, ADA'"
+    },
+    {
+      "text": "greeting output ('', False)",
+      "passed": true,
+      "evidence": "'Hello, '"
+    },
+    {
+      "text": "greeting output ('Zo\u00eb', True)",
+      "passed": true,
+      "evidence": "'HELLO, ZO\u00cb'"
+    },
+    {
+      "text": "default compatibility",
+      "passed": true,
+      "evidence": "'Hello, Ada'"
+    },
+    {
+      "text": "routine produced no convergence/review/manifest artifact",
+      "passed": true,
+      "evidence": "['greeting.py', 'test_greeting.py']"
+    },
+    {
+      "text": "declaration precedes nonguidance discovery",
+      "passed": true,
+      "evidence": "Actualtranscript beforedeclaration only source guidance load(s)."
+    }
+  ],
+  "summary": {
+    "passed": 7,
+    "failed": 0,
+    "total": 7
+  }
+}

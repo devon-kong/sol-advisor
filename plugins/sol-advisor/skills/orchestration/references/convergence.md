@@ -39,6 +39,25 @@ Inspection scope may be broader than confirmed impact, and confirmed impact may 
 broader than mutation authority. Do not collapse these sets. Search results are inventory
 evidence; they do not prove runtime semantics.
 
+### Compact causal example
+
+~~~text
+RULE OR MECHANISM: publish/send/consume completion identity
+PUBLISH: publishAttempt(A, identity={jobId, generation}) | affected | sends both fields
+SEND: worker send identity={jobId, generation} | affected | retains that exact identity
+CONSUME: consumeResult identity={jobId, generation} | affected | compares both fields
+LAST ASYNC BOUNDARY: await final completion, not only the pre-await poll
+FINAL DEADLINE DECISION: deadline is decided after that await; a completion observed before
+  the next poll is not accepted until its matching final result is consumed
+ERROR OR UNKNOWN: expiry returns `TIMEOUT`; a mismatched or absent final result returns
+  `UNKNOWN`, never `DONE`
+VALID NEIGHBOR: matching final result before deadline returns `DONE`
+EXCLUDED CONSUMER: publishAttempt(B) passes the same full identity, awaits its final
+  result, and returns typed `TIMEOUT`/`UNKNOWN`; an exercised trace supports exclusion
+EVIDENCE-BACKED EXCLUSION: the trace includes the publish, send, consume, final await,
+  deadline decision, and typed result for B; a shared name alone does not exclude it
+~~~
+
 ## Closure record
 
 After correcting a material finding, record:
@@ -57,6 +76,9 @@ closure claim it falsifies. The next attempt must change the design, inventory, 
 or other relevant method and name the new information it seeks. A different prompt with
 the same method is not a changed attempt.
 
+Formatting-only corrections need the affected structural check but do not force unrelated
+business reruns. Preserve evidence that does not depend on the changed bytes.
+
 ## Resume record
 
 Use an existing handoff or status artifact when one exists. Otherwise keep one short
@@ -74,4 +96,19 @@ STOP: <budget, retry, authority, or human-input boundary>
 
 On resume, compare the record to current files and evidence. Do not carry forward a
 `ship`, accepted state, or closure claim when its candidate or supporting conditions no
-longer match.
+longer match. Correction budgets are user-defined. An authorized resume preserves prior
+failures and the cumulative record; it does not reset a falsified closure.
+
+## Multi-file verification plan
+
+~~~text
+FILES: <required files or artifacts>
+SCENARIOS: <rejected path and adjacent valid path, with expected result>
+MISSING INPUTS: <none, or stop>
+EXECUTED: <actual cases matched to SCENARIOS>
+RESULT: <evidence beyond exit code or skip count>
+~~~
+
+Reject an incomplete plan before claiming verification. This plan may stay inline; it does
+not require a separate artifact. Use a stable dependency-complete copy or relevant
+pre/post digest when independent writers can change the inputs.

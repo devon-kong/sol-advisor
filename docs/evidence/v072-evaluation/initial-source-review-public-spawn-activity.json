@@ -1,0 +1,20 @@
+{
+  "source": "mcp__codex_app.read_thread parent current root; subAgentActivity carries matching call IDs and native UUID",
+  "root_thread": "01a09b12-e0e0-7a40-8ff9-1aac48b77531",
+  "activities": [
+    {
+      "type": "subAgentActivity",
+      "id": "call_vG5CQv6TCpzPlPeqie4y8Y7Y",
+      "kind": "started",
+      "agentThreadId": "01a09b26-e8a5-7f50-99a0-4e0617413789",
+      "agentPath": "/root/v072_rule_implementation"
+    },
+    {
+      "type": "subAgentActivity",
+      "id": "call_d0dLIdoZxPhasktI6mIsSVSA",
+      "kind": "started",
+      "agentThreadId": "01a09b3a-1309-7592-af47-3342288fd029",
+      "agentPath": "/root/v072_fresh_final_reviewer"
+    }
+  ]
+}

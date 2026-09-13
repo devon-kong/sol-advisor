@@ -1,0 +1,59 @@
+{
+  "status": "FIVE_SCENARIO_CLASSES_PASSED",
+  "cases": {
+    "routine": {
+      "iteration": "iteration-3",
+      "grading": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/evaluations/iteration-3/eval-routine/with_skill/grading.json",
+      "result": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/evaluations/iteration-3/eval-routine/with_skill/outputs/result.md",
+      "summary": {
+        "passed": 7,
+        "failed": 0,
+        "total": 7
+      }
+    },
+    "shared": {
+      "iteration": "iteration-3",
+      "grading": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/evaluations/iteration-3/eval-shared/with_skill/grading.json",
+      "result": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/evaluations/iteration-3/eval-shared/with_skill/outputs/result.md",
+      "summary": {
+        "passed": 8,
+        "failed": 0,
+        "total": 8
+      }
+    },
+    "handoff": {
+      "iteration": "iteration-3",
+      "grading": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/evaluations/iteration-3/eval-handoff/with_skill/grading.json",
+      "result": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/evaluations/iteration-3/eval-handoff/with_skill/outputs/result.md",
+      "summary": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      }
+    },
+    "closure": {
+      "iteration": "iteration-3",
+      "grading": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/evaluations/iteration-3/eval-closure/with_skill/grading.json",
+      "result": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/evaluations/iteration-3/eval-closure/with_skill/outputs/result.md",
+      "summary": {
+        "passed": 17,
+        "failed": 0,
+        "total": 17
+      }
+    },
+    "review": {
+      "iteration": "iteration-1",
+      "grading": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/evaluations/iteration-1/eval-review/with_skill/grading.json",
+      "result": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/evaluations/iteration-1/eval-review/with_skill/outputs/result.md",
+      "summary": {
+        "passed": 3,
+        "failed": 0,
+        "total": 3
+      }
+    }
+  },
+  "preserved_initial_sequence_failures": 4,
+  "startup_cases_compliant_after_metadatavisibility_fix": 4,
+  "not_costbenchmark": true,
+  "native_spawning_in_fixture_roots_forbidden": true
+}

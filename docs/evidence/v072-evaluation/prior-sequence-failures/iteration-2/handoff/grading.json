@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "text": "stale editing-phase evidence rejected",
+      "passed": true,
+      "evidence": "Native transcript and final result reject initial unboundlimit20; editing state observed."
+    },
+    {
+      "text": "worker stopped before stablecurrent verification",
+      "passed": true,
+      "evidence": "Root confirmedphase stopped/writes0, CLIlimit20, relevantinputhashesunchanged."
+    },
+    {
+      "text": "delegate doesnotpatchproduction or addreviewer",
+      "passed": true,
+      "evidence": "Only documented handoff changedcontrol, no patches or native spawns."
+    },
+    {
+      "text": "route precedes non-guidance tasktools",
+      "passed": false,
+      "evidence": "First skillread+ls batch before declaration, no-BODY-batch warning was notvisible whenbatchscheduled."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4
+  }
+}

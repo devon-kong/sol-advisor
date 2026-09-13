@@ -1,0 +1,31 @@
+{
+  "scenario": "editing worker after dependency import",
+  "input_before": {
+    "HANDOFF.md": "25cea8518be6529221886183feea52c5806bc361367cd24dbf8835bf299f633a",
+    "policy.py": "53c01326486ba76c25583153338b4d50d26295bcf3a4f3828c4f8ab746b31236",
+    "render.py": "9fa6817a0a328632ecb095855fe9cce8739b9d3224d29cbc837e3a2863152f01",
+    "worker.py": "170e41e9b54b467179bee7bebb69d3cefe22ffceb4696e1722a2eba1c79a3940",
+    "worker-state.json": "19a0b7c6e0654193a2bc249048f6c1dc6b6962415a8c1c619ba8a962dd25d64c"
+  },
+  "command": "PYTHONDONTWRITEBYTECODE=1 python3 render.py (cwd=root-verification/unstable-probe)",
+  "exit_code": 0,
+  "stdout": "limit=20\n",
+  "stderr": "",
+  "input_after": {
+    "HANDOFF.md": "25cea8518be6529221886183feea52c5806bc361367cd24dbf8835bf299f633a",
+    "policy.py": "eabaead4319aab8d4a77255948fdd5910a5dc5c79f3e55f74bfd317458e35aae",
+    "render.py": "9fa6817a0a328632ecb095855fe9cce8739b9d3224d29cbc837e3a2863152f01",
+    "worker.py": "170e41e9b54b467179bee7bebb69d3cefe22ffceb4696e1722a2eba1c79a3940",
+    "worker-state.json": "34944075381295f6db2e83b864de528dbd8deca30dba41021957f6d0b96de7fd"
+  },
+  "changed": [
+    "policy.py",
+    "worker-state.json"
+  ],
+  "policy_after": "LIMIT = 21\n",
+  "worker_state_after": {
+    "phase": "editing",
+    "writes": 1
+  },
+  "acceptance": "REJECTED: successful output depends on prior imported bytes; selected input changed during verification"
+}

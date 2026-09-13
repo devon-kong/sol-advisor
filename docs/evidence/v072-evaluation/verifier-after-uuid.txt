@@ -1,0 +1,96 @@
+PASS: required files present
+PASS: UI metadata exposes orchestration and its default route prompt
+PASS: manifest JSON and v0.7.2 discovery copy
+three exact role pins are valid
+PASS: exact three-role TOML inventory
+PASS: immutable historical migration fingerprints
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/clean/sol-advisor-luna-implementer.toml
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/clean/sol-advisor-terra-implementer.toml
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/clean/sol-advisor-sol-reviewer.toml
+INSTALL PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+CHECK PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+ALREADY CURRENT: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/clean/sol-advisor-luna-implementer.toml
+ALREADY CURRENT: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/clean/sol-advisor-terra-implementer.toml
+ALREADY CURRENT: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/clean/sol-advisor-sol-reviewer.toml
+INSTALL PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+PASS: clean install, exact check, and idempotence
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/selective/sol-advisor-luna-implementer.toml
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/selective/sol-advisor-terra-implementer.toml
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/selective/sol-advisor-sol-reviewer.toml
+INSTALL PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+CHECK PASSED: selected role templates exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+CHECK PASSED: selected role templates exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+CHECK PASSED: selected role templates exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+CHECK PASSED: selected role templates exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+PASS: selective Luna/Reviewer check, legacy Reviewer alias, Terra refusal, all-role compatibility, and invalid-role refusal
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/selective-terra/sol-advisor-luna-implementer.toml
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/selective-terra/sol-advisor-terra-implementer.toml
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/selective-terra/sol-advisor-sol-reviewer.toml
+INSTALL PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+CHECK PASSED: selected role templates exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+PASS: repeatable selective checks, Luna refusal, and all-role compatibility
+CHECK PASSED: selected role templates exactly match /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T/sol-advisor-verify.r8Bd4p/isolated-plugin/scripts/../agents.
+PASS: selected Terra check isolates absent unselected sources and unsafe unselected destinations
+PASS: missing-target check refusal is non-mutating
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/codex-home/agents/sol-advisor-luna-implementer.toml
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/codex-home/agents/sol-advisor-terra-implementer.toml
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/codex-home/agents/sol-advisor-sol-reviewer.toml
+INSTALL PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+INSTALLED: /private/var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T/sol-advisor-verify.r8Bd4p/relative-parent/relative-agents/sol-advisor-luna-implementer.toml
+INSTALLED: /private/var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T/sol-advisor-verify.r8Bd4p/relative-parent/relative-agents/sol-advisor-terra-implementer.toml
+INSTALLED: /private/var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T/sol-advisor-verify.r8Bd4p/relative-parent/relative-agents/sol-advisor-sol-reviewer.toml
+INSTALL PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+PASS: CODEX_HOME and relative target behavior
+MIGRATED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/migration/sol-advisor-luna-implementer.toml
+MIGRATED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/migration/sol-advisor-terra-implementer.toml
+ALREADY CURRENT: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/migration/sol-advisor-sol-reviewer.toml
+INSTALL PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+CHECK PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+PASS: exact historical Luna/Terra migration
+MIGRATED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/v050-migration/sol-advisor-luna-implementer.toml
+MIGRATED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/v050-migration/sol-advisor-terra-implementer.toml
+ALREADY CURRENT: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/v050-migration/sol-advisor-sol-reviewer.toml
+INSTALL PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+CHECK PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+PASS: exact v0.5.0 Luna/Terra migration
+PASS: modified v0.5.0 Luna refusal with zero partial mutation
+PASS: modified v0.5.0 Terra refusal with zero partial mutation
+PASS: modified Luna refusal with zero partial mutation
+PASS: differing legacy Terra refusal with zero partial mutation
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/modified-current/sol-advisor-luna-implementer.toml
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/modified-current/sol-advisor-terra-implementer.toml
+INSTALLED: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/modified-current/sol-advisor-sol-reviewer.toml
+INSTALL PASSED: Luna, Terra, and Reviewer exactly match /Users/devon/claude/sol-advisor/plugins/sol-advisor/scripts/../agents.
+PASS: modified current-role refusal with zero partial mutation
+PASS: unsafe destination refusal with zero partial mutation
+PASS: runtime inspector Luna/Max routing and safe refusal
+PASS: runtime inspector Terra/High routing evidence
+PASS: runtime inspector Reviewer Sol/High/read-only evidence
+PASS: route, acceptance, impact-surface, review, and correction contracts
+PASS: operations preserves native mechanics without route-policy duplication
+two companion install examples are fail-closed and guarded
+PASS: README is concise, user-first, route-tabled, and keeps maintainer machinery out
+PASS: current role inventory has no second Terra interface
+...................
+----------------------------------------------------------------------
+Ran 19 tests in 6.758s
+
+OK
+PASS: 19 candidate snapshot and verification tests
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.100s
+
+OK
+PASS: 5 behavioral fixture calibration tests
+PASS: shell syntax
+VERIFY PASSED: Sol Advisor v0.7.2 convergence checks completed in /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p
+ERROR: Luna template is missing, not the current exact file: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/missing/sol-advisor-luna-implementer.toml
+ERROR: Terra template is missing, not the current exact file: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/missing/sol-advisor-terra-implementer.toml
+ERROR: Reviewer template is missing, not the current exact file: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/missing/sol-advisor-sol-reviewer.toml
+ERROR: Luna destination is conflict and will not be replaced: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/modified-v050-luna/sol-advisor-luna-implementer.toml
+ERROR: Terra destination is conflict and will not be replaced: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/modified-v050-terra/sol-advisor-terra-implementer.toml
+ERROR: Luna destination is conflict and will not be replaced: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/modified-luna/sol-advisor-luna-implementer.toml
+ERROR: Terra destination is conflict and will not be replaced: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/modified-terra/sol-advisor-terra-implementer.toml
+ERROR: Luna destination is conflict and will not be replaced: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/modified-current/sol-advisor-luna-implementer.toml
+ERROR: Luna destination is unsafe and will not be replaced: /var/folders/kf/cp20rvrd2bq903_mr1r2hvz40000gn/T//sol-advisor-verify.r8Bd4p/unsafe/sol-advisor-luna-implementer.toml

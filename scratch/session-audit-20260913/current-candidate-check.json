@@ -1,0 +1,41 @@
+{
+  "exit": 1,
+  "status": "changed",
+  "reviewed_candidate": "sha256:78b120c1f6b7db66bbafec48c575b89fd2fad9725b803b628cd316d593511f84",
+  "current_candidate": "sha256:1edb11dcf1845b61afd7d952ab03db527bf3bed54c54bc12d8487b05b859f691",
+  "head_changed": false,
+  "change_count": 520,
+  "production_changes": [
+    {
+      "change": "modified",
+      "path": "packages/booking-cli/lib/auth/authenticated-transport.mjs",
+      "scope": "repo"
+    },
+    {
+      "change": "modified",
+      "path": "packages/booking-cli/lib/core/campaign-scheduler.mjs",
+      "scope": "repo"
+    },
+    {
+      "change": "modified",
+      "path": "packages/booking-cli/lib/foundation/session-lease.mjs",
+      "scope": "repo"
+    },
+    {
+      "change": "modified",
+      "path": "packages/booking-cli/lib/foundation/session-store.mjs",
+      "scope": "repo"
+    },
+    {
+      "change": "modified",
+      "path": "packages/booking-cli/lib/renewer/renewer-runtime.mjs",
+      "scope": "repo"
+    },
+    {
+      "change": "modified",
+      "path": "packages/booking-cli/lib/session/setup-flow.mjs",
+      "scope": "repo"
+    }
+  ],
+  "meaning": "Historical verdict cannot accept current working tree; does not prove mutation happened during original review."
+}

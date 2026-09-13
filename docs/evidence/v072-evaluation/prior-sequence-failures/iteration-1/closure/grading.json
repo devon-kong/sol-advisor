@@ -1,0 +1,94 @@
+{
+  "expectations": [
+    {
+      "text": "publish valid",
+      "passed": true,
+      "evidence": "{'result': True, 'output': ['prior', 'x'], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'a', 'token': 't', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "publish initial-expired",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'a', 'token': 't', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "publish late-expired",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'a', 'token': 't', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "publish owner-id",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'other', 'token': 't', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "publish preserves foreign owner",
+      "passed": true,
+      "evidence": "{'scope': 'PUBLISHER', 'owner_id': 'other', 'token': 't', 'acquired_at': 1, 'expires_at': 100}"
+    },
+    {
+      "text": "publish token",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'a', 'token': 'other', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "publish acquired",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'a', 'token': 't', 'acquired_at': 2, 'expires_at': 100}}"
+    },
+    {
+      "text": "publish scope",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'READER', 'owner_id': 'a', 'token': 't', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "merge valid",
+      "passed": true,
+      "evidence": "{'result': True, 'output': ['prior', {'merged': 'x'}], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'a', 'token': 't', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "merge initial-expired",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'a', 'token': 't', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "merge late-expired",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'a', 'token': 't', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "merge owner-id",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'other', 'token': 't', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "merge preserves foreign owner",
+      "passed": true,
+      "evidence": "{'scope': 'PUBLISHER', 'owner_id': 'other', 'token': 't', 'acquired_at': 1, 'expires_at': 100}"
+    },
+    {
+      "text": "merge token",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'a', 'token': 'other', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "merge acquired",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'PUBLISHER', 'owner_id': 'a', 'token': 't', 'acquired_at': 2, 'expires_at': 100}}"
+    },
+    {
+      "text": "merge scope",
+      "passed": true,
+      "evidence": "{'result': False, 'output': ['prior'], 'owner': {'scope': 'READER', 'owner_id': 'a', 'token': 't', 'acquired_at': 1, 'expires_at': 100}}"
+    },
+    {
+      "text": "route declaration precedes non-guidance task tools",
+      "passed": false,
+      "evidence": "First sourceSKILL read andrg inventory precededdeclaration in samebatch; failed sequence retained, rule corrected and rerunplanned."
+    }
+  ],
+  "summary": {
+    "passed": 16,
+    "failed": 1,
+    "total": 17
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "checked_at_utc": "2026-09-13T14:06:03.922201+00:00",
+  "target": "historical accepted package, not current working tree",
+  "tgz": "/Users/devon/claude/12306-http-api-mvp/scratch/w3-independent-depth-final-20260913/delivery.tgz",
+  "tgz_sha256": "d4d951b653c0a46b76d427b5aaeba9690f96214ac5a4d4330ebaae6b599c3a60",
+  "packaged_file_count": 61,
+  "packaged_file_mismatches": [],
+  "cwd": "/Users/devon/claude/12306-http-api-mvp/scratch/w3-independent-depth-final-20260913",
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=15000",
+    "installed-new-boundaries-complete.test.mjs"
+  ],
+  "exit": 1,
+  "preload": "--require /Users/devon/claude/12306-http-api-mvp/scratch/w3-independent-depth-final-20260913/prefix/node_modules/12306-booking-cli/tests/network-double-preload.cjs",
+  "counts": {
+    "tests": "27",
+    "pass": "10",
+    "fail": "17",
+    "cancelled": "0",
+    "skipped": "0",
+    "todo": "0"
+  },
+  "injected": 12,
+  "network_calls": 0
+}

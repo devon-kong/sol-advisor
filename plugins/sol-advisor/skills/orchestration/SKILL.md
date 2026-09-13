@@ -1,6 +1,6 @@
 ---
 name: orchestration
-description: "Codex-native risk-gated selective routing: default solo delivery, targeted native delegation or audit, and exceptional full review."
+description: "Codex-native risk-gated selective routing: default solo delivery, targeted native delegation or audit, and exceptional full review. For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery."
 ---
 
 # Sol Advisor Orchestration
@@ -20,6 +20,13 @@ task needs.
 
 ## Declare the route before task tools
 
+Before declaring a route, the root may read this skill and the references directly linked
+from it, read-only. All other repository or memory inspection, tests, task tools, and
+task-scoped commands require the declaration first.
+After guidance-only loading, declare the route before inspecting any task files.
+Do not batch skill/reference loading with repository discovery or other task tools before
+the declaration.
+
 Before the first task tool call, emit one machine-auditable declaration:
 
 ~~~text
@@ -28,7 +35,7 @@ mode: solo | delegate | audit | full
 risk: <concise, task-specific rationale>
 ~~~
 
-No task tool call may precede this declaration. Choose `solo` unless a stated risk
+No other task tool call may precede this declaration. Choose `solo` unless a stated risk
 justifies another mode. A later declaration may only escalate the route when newly
 observed risk justifies it; never silently downgrade. Record the evidence for an
 escalation. Details and the task-scoped preflight matrix are in operations.md.
@@ -102,7 +109,30 @@ Treat worker reports as claims. Confirm the complete diff, changed-file scope, r
 checks, and artifact/runtime evidence as the root. Do not duplicate the selected
 implementer's work.
 
+## Keep verification evidence stable
+
+Every mode needs stable evidence. A worker stops writes to files handed to the root when
+it returns, and does not resume those writes until the root releases that file set. In
+`solo`, the root tests after its own edit. If independent writers exist, verify against a
+stable dependency-complete copy or record a relevant pre/post digest around the check.
+An edit invalidates only the evidence that depends on changed bytes; retain earlier,
+reproducible failures and unaffected evidence with their scope. Formatting-only corrections
+need the affected structural checks, but do not by themselves force unrelated business
+reruns.
+
+For a multi-file change, the acceptance basis must name the required files and scenarios.
+The plan may be inline; it does not require a separate artifact. Reject a plan with missing
+inputs, and compare the executed cases with that plan. Exit zero or a zero-skip report
+alone is not behavioral proof.
+
 ## Close findings by cause and evidence
+
+Every mode, including `solo`, handles a discovered defect with the same sequence: preserve
+or reproduce the failure, inspect causally related consumers, correct confirmed defects
+within authority, then verify the rejected path and an adjacent valid path. This sequence
+does not create an automatic extra agent, reviewer, manifest, table, or repository-wide
+sweep. Use a compact table only when multiple consumers make it useful; local prose is
+enough otherwise.
 
 Apply the same handling to findings from implementation, root verification, and review:
 
@@ -129,14 +159,17 @@ Before the next attempt, state what the prior reasoning missed, what method now 
 and what new evidence the attempt should produce. If the mechanism is already shown
 infeasible, rethink immediately rather than waiting for a repeat count. Rejecting a
 finding requires counterevidence or an explicit acceptance-basis citation; changing
-reviewers never clears an unresolved valid finding.
+reviewers never clears an unresolved valid finding. Correction budgets are user-defined;
+on an authorized resume, preserve prior failures and the cumulative closure record.
 
 ## Review only when the route includes it
 
 For `audit` and `full`, after root verification, spawn a new native Sol / High
 reviewer. The reviewer must remain behaviorally read-only, inspect the actual
 accumulated diff, and return exactly ship, fix-first, or rethink. A reviewer never
-implements its own fixes. `solo` and `delegate` do not receive a fresh reviewer.
+implements its own fixes. For every high-risk or repeated-omission principal material
+risk, it must offer a fresh behavior challenge or actual-code equivalence reasoning; a
+hash or log alone is not approval. `solo` and `delegate` do not receive a fresh reviewer.
 
 - ship: report completion with the verification evidence.
 - fix-first applies only to `audit` and `full`:

@@ -1,0 +1,89 @@
+{
+  "root_only_documented_decision_replay": true,
+  "new_product_resolver": false,
+  "authoritative_mapping_source": "full-review/spawn-uuid-mapping.json and public-spawn-activity.json",
+  "positive_actual_inspector_cases": [
+    {
+      "case": "/root/v072_rule_implementation",
+      "recovered_uuid": "01a09b26-e8a5-7f50-99a0-4e0617413789",
+      "inspector_pass": true,
+      "routing": {
+        "thread_id": "01a09b26-e8a5-7f50-99a0-4e0617413789",
+        "parent_thread_id": "01a09b12-e0e0-7a40-8ff9-1aac48b77531",
+        "agent_role": "sol_advisor_terra_implementer",
+        "agent_path": "/root/v072_rule_implementation",
+        "model_provider": "openai",
+        "model": "gpt-5.6-terra",
+        "effort": "high",
+        "sandbox_policy_type": "danger-full-access",
+        "permission_profile_type": "disabled",
+        "cwd": "/Users/devon/claude/sol-advisor"
+      }
+    },
+    {
+      "case": "/root/v072_fresh_final_reviewer",
+      "recovered_uuid": "01a09b3a-1309-7592-af47-3342288fd029",
+      "inspector_pass": true,
+      "routing": {
+        "thread_id": "01a09b3a-1309-7592-af47-3342288fd029",
+        "parent_thread_id": "01a09b12-e0e0-7a40-8ff9-1aac48b77531",
+        "agent_role": "sol_advisor_sol_reviewer",
+        "agent_path": "/root/v072_fresh_final_reviewer",
+        "model_provider": "openai",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "sandbox_policy_type": "danger-full-access",
+        "permission_profile_type": "disabled",
+        "cwd": "/Users/devon/claude/sol-advisor"
+      }
+    }
+  ],
+  "negative_decision_vectors": [
+    {
+      "case": "zero",
+      "rejected": true,
+      "reason": "no authoritative match"
+    },
+    {
+      "case": "wrong-parent",
+      "rejected": true,
+      "reason": "no authoritative match"
+    },
+    {
+      "case": "wrong-path",
+      "rejected": true,
+      "reason": "no authoritative match"
+    },
+    {
+      "case": "wrong-call",
+      "rejected": true,
+      "reason": "no authoritative match"
+    },
+    {
+      "case": "multiple",
+      "rejected": true,
+      "reason": "ambiguous native identity"
+    },
+    {
+      "case": "public-conflict",
+      "rejected": true,
+      "reason": "public/local conflict"
+    },
+    {
+      "case": "malformed",
+      "rejected": true,
+      "reason": "invalid UUID"
+    },
+    {
+      "case": "path-as-public-UUID",
+      "rejected": true,
+      "reason": "public/local conflict"
+    }
+  ],
+  "actual_inspector_path_as_UUID": {
+    "exit": 1,
+    "output": "ERROR: THREAD_ID must be a lowercase UUID.\n"
+  },
+  "count": 11,
+  "status": "PASS"
+}

@@ -80,8 +80,16 @@ result. Verify the selected role, model, and effort; for a Reviewer, also verify
 observed sandbox and permission handling. Do not validate an unspawned auxiliary. A
 failure stops only that stage.
 
-Public spawn/details metadata is authoritative. If it omits model or effort, resolve
-the helper relative to the installed skill and inspect the exact native thread ID:
+Public spawn/details metadata is authoritative. Prefer the UUID supplied by public details when present.
+An initial public receipt need not contain a UUID when authoritative records
+can recover identity. If it is omitted, read only public metadata and local allowlisted
+session fields to recover one unambiguous native UUID tied to this spawn: match the root
+parent UUID and the exact returned canonical path, and match the public call ID when it is
+available. An absent, ambiguous, multiple, or conflicting mapping pauses only the active
+lane. Never pass a canonical path as a UUID, and never guess a thread, model, or role.
+
+Pass only that provided or uniquely recovered UUID to the helper resolved relative to the
+installed skill:
 
 ~~~sh
 skill_dir=<directory-containing-this-SKILL.md>
@@ -90,8 +98,9 @@ sh "$runtime_inspector" <native-subagent-thread-id>
 ~~~
 
 The helper emits allowlisted routing fields and refuses invalid IDs, zero/multiple
-matches, missing fields, or conflicting values. If public and local evidence both
-exist, they must agree. It is not a model-selection fallback.
+matches, missing fields, or conflicting values. Public and local evidence must agree; a
+conflict refuses the active lane. This is not a role fallback, a resolver CLI, a helper
+adapter, or a general runtime tool.
 
 ## Reviewer isolation
 
@@ -106,6 +115,20 @@ policy and permission profile:
 
 A Reviewer returns exactly `ship`, `fix-first`, or `rethink`. A fix invalidates the
 prior verdict; re-verify and obtain a new fresh review as required by SKILL.md.
+
+## Stable evidence and verification plans
+
+For every route, a handed-off worker stops writes to its handed-off files until the root
+releases them. The root tests after its own `solo` edit. With independent writers, use a
+stable dependency-complete copy or record a relevant pre/post digest around the check.
+Edits invalidate only evidence that depends on changed bytes; a candidate-bound review is
+still unusable when its selected input changes. Formatting-only corrections need affected
+structural checks, not unrelated business reruns.
+
+For a multi-file verification plan, name required files and behavioral scenarios before
+execution. The plan may be inline; no separate artifact is required. Reject missing inputs
+and compare actual executed cases with the plan. An exit status of zero or zero skips is
+insufficient without those cases and their expected results.
 
 ## Stable candidate binding
 
@@ -165,7 +188,7 @@ git status --short
 git diff --stat
 ~~~
 
-The verifier covers the v0.7.1 manifest, exact role inventory/pins, installer safety and
+The verifier covers the v0.7.2 manifest, exact role inventory/pins, installer safety and
 selected-role isolation, all runtime-role fixtures, route and convergence contracts,
 candidate-tool behavior, README scope, JSON/TOML parsing, and shell/Python syntax. The
 candidate behavior suite was verified on Python 3.12 and Python 3.14; do not treat that

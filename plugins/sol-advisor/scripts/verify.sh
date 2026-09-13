@@ -19,6 +19,9 @@ contracts=$plugin_dir/skills/orchestration/references/role-contracts.md
 operations=$plugin_dir/skills/orchestration/references/operations.md
 convergence=$plugin_dir/skills/orchestration/references/convergence.md
 candidate_tests=$plugin_dir/tests
+candidate_test=$candidate_tests/test_candidate.py
+behavioral_test=$candidate_tests/test_behavioral_fixtures.py
+behavioral_cases=$candidate_tests/behavioral-evals/cases.json
 readme=$repo_dir/README.md
 ui=$plugin_dir/skills/orchestration/agents/openai.yaml
 
@@ -158,7 +161,7 @@ V050_TERRA
   [ "$(shasum -a 256 "$target/$terra_file" | awk '{print $1}')" = "$legacy_terra_v050_sha256" ] || fail "v0.5.0 Terra fixture digest drifted"
 }
 
-for required in "$installer" "$runtime_inspector" "$candidate_tool" "$manifest" "$skill" "$contracts" "$operations" "$convergence" "$readme" "$ui"; do
+for required in "$installer" "$runtime_inspector" "$candidate_tool" "$manifest" "$skill" "$contracts" "$operations" "$convergence" "$readme" "$ui" "$candidate_test" "$behavioral_test" "$behavioral_cases"; do
   test -f "$required" || fail "required file missing: $required"
 done
 pass "required files present"
@@ -166,13 +169,17 @@ pass "required files present"
 grep -Fq '$orchestration' "$ui" || fail "UI metadata omits the orchestration entry"
 grep -Fq 'default_prompt:' "$ui" || fail "UI metadata omits the default route prompt"
 grep -Fq 'SELECTIVE ROUTE' "$ui" || fail "UI metadata default prompt omits route declaration"
+grep -Fq 'For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery.' "$ui" || fail "UI metadata omits startup sequencing"
+grep -Eq '^  default_prompt: .*For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery\.' "$ui" || fail "UI metadata startup prompt is not inside interface"
+if grep -Eq '^default_prompt:' "$ui"; then fail "UI metadata has a root-level default_prompt"; fi
 pass "UI metadata exposes orchestration and its default route prompt"
 
 jq empty "$manifest"
-[ "$(jq -r '.version' "$manifest")" = 0.7.1 ] || fail "manifest version is not 0.7.1"
+[ "$(jq -r '.version' "$manifest")" = 0.7.2 ] || fail "manifest version is not 0.7.2"
 grep -Fq 'SELECTIVE ROUTE' "$manifest" || fail "manifest omits route declaration"
 grep -Fq 'Spawned auxiliary evidence is fail-closed' "$manifest" || fail "manifest omits auxiliary fail-closed rule"
-pass "manifest JSON and v0.7.1 discovery copy"
+grep -Fq 'For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery.' "$manifest" || fail "manifest omits startup sequencing"
+pass "manifest JSON and v0.7.2 discovery copy"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path
@@ -457,12 +464,15 @@ for document in "$contracts" "$operations"; do
 done
 grep -Fq 'references/operations.md' "$skill" || fail "skill does not link operations reference"
 grep -Fq 'references/convergence.md' "$skill" || fail "skill does not link convergence reference"
+grep -Fq 'For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery.' "$skill" || fail "skill metadata omits startup sequencing"
 grep -Fq '../../scripts/install-agents.sh' "$operations" || fail "operations does not resolve installer relatively"
 grep -Fq '../../scripts/inspect-agent-runtime.sh' "$operations" || fail "operations does not resolve inspector relatively"
 grep -Fq '../../scripts/candidate.py' "$operations" || fail "operations does not resolve candidate tool relatively"
 grep -Fq 'SELECTIVE ROUTE' "$skill" || fail "skill omits route declaration"
 grep -Fq 'mode: solo | delegate | audit | full' "$skill" || fail "skill omits exact route modes"
-grep -Fq 'No task tool call may precede this declaration' "$skill" || fail "skill permits tool-before-route"
+grep -Fq 'Before declaring a route, the root may read this skill and the references directly linked' "$skill" || fail "skill omits read-only route-declaration exemption"
+grep -Fq 'Do not batch skill/reference loading with repository discovery or other task tools before' "$skill" || fail "skill permits batched pre-declaration discovery"
+grep -Fq 'No other task tool call may precede this declaration' "$skill" || fail "skill permits tool-before-route"
 grep -Fq 'Solo is the default' "$skill" || fail "skill omits solo default"
 grep -Fq 'One auxiliary agent is the default maximum' "$skill" || fail "skill omits auxiliary limit"
 grep -Fq 'A later declaration may only escalate the route when newly' "$skill" || fail "skill omits escalation gate"
@@ -493,11 +503,18 @@ grep -Fq '`solo` and `delegate` do not receive a fresh reviewer' "$skill" || fai
 grep -Fq 'audit: the root implements the required correction, re-verifies, and obtains a new' "$skill" || fail "skill does not assign audit corrections to root"
 grep -Fq 'full: the selected implementer handles the required correction, the root' "$skill" || fail "skill does not assign full corrections to selected implementer"
 if grep -Fq 'fix-first: delegate the required correction' "$skill"; then fail "skill retains unconditional fix-first delegation"; fi
+grep -Fq 'Every mode, including `solo`, handles a discovered defect' "$skill" || fail "skill does not make defect handling uniform"
+grep -Fq 'or reproduce the failure' "$skill" || fail "skill omits failure preservation or reproduction"
+grep -Fq 'does not create an automatic extra agent, reviewer, manifest, table, or repository-wide' "$skill" || fail "skill adds automatic defect overhead"
+grep -Fq 'worker stops writes to files handed to the root' "$skill" || fail "skill omits worker handoff write stop"
+grep -Fq 'The plan may be inline; it does not require a separate artifact' "$skill" || fail "skill requires a standalone verification plan artifact"
 for phrase in \
   'OBJECTIVE AND ACCEPTANCE' \
   'IMPACT SURFACE' \
   'EVIDENCE MAP' \
   'UNVERIFIED' \
+  'At handoff, stop writes to files handed to the root until the root explicitly releases' \
+  'For every high-risk or repeated-omission principal material risk' \
   'CLASS: implementation | verification | architecture-contract | environment | candidate-review' \
   'REQUIRED NEXT ACTION'; do
   grep -Fq "$phrase" "$contracts" || fail "role contracts omit: $phrase"
@@ -507,6 +524,9 @@ for phrase in \
   'RULE OR MECHANISM' \
   'OBSERVED:' \
   'FALSIFIED:' \
+  'PUBLISH: publishAttempt(A, identity={jobId, generation})' \
+  'LAST ASYNC BOUNDARY: await final completion' \
+  'EVIDENCE-BACKED EXCLUSION:' \
   'the same method is not a changed attempt'; do
   grep -Fq "$phrase" "$convergence" || fail "convergence reference omits: $phrase"
 done
@@ -518,6 +538,13 @@ for phrase in \
   'agent_type: sol_advisor_sol_reviewer' \
   'fork_turns: none' \
   'runtime_inspector' \
+  'Prefer the UUID supplied by public details when present' \
+  'parent UUID and the exact returned canonical path' \
+  'public call ID when it is' \
+  'absent, ambiguous, multiple, or conflicting mapping pauses only the active' \
+  'Never pass a canonical path as a UUID' \
+  'not a role fallback, a resolver CLI, a helper' \
+  'stable dependency-complete copy or record a relevant pre/post digest' \
   'sandbox_mode = read-only' \
   'install-agents.sh --check'; do
   grep -Fqi "$phrase" "$operations" || fail "operations reference omits: $phrase"
@@ -568,7 +595,7 @@ fi
 pass "current role inventory has no second Terra interface"
 
 test -d "$candidate_tests" || fail "candidate behavior tests are missing"
-python3 - "$candidate_tool" "$candidate_tests/test_candidate.py" <<'PY'
+python3 - "$candidate_tool" "$candidate_test" "$behavioral_test" <<'PY'
 from pathlib import Path
 import sys
 
@@ -576,12 +603,26 @@ for value in sys.argv[1:]:
     path = Path(value)
     compile(path.read_bytes(), str(path), "exec")
 PY
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$candidate_tests" -p 'test_*.py'
-pass "candidate snapshot and verification behavior"
+candidate_output=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$candidate_tests" -p 'test_candidate.py' 2>&1) || {
+  printf '%s\n' "$candidate_output" >&2
+  fail "candidate snapshot and verification behavior failed"
+}
+printf '%s\n' "$candidate_output"
+printf '%s\n' "$candidate_output" | grep -Eq 'Ran 19 tests' || fail "candidate suite no longer has the required 19 tests"
+printf '%s\n' "$candidate_output" | grep -Eq '^OK$' || fail "candidate suite did not report OK"
+pass "19 candidate snapshot and verification tests"
+behavioral_output=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$candidate_tests" -p 'test_behavioral_fixtures.py' 2>&1) || {
+  printf '%s\n' "$behavioral_output" >&2
+  fail "behavioral fixture calibration failed"
+}
+printf '%s\n' "$behavioral_output"
+printf '%s\n' "$behavioral_output" | grep -Eq 'Ran 5 tests' || fail "behavioral calibration no longer has the required 5 tests"
+printf '%s\n' "$behavioral_output" | grep -Eq '^OK$' || fail "behavioral calibration did not report OK"
+pass "5 behavioral fixture calibration tests"
 
 sh -n "$installer"
 sh -n "$runtime_inspector"
 sh -n "$script_dir/verify.sh"
 pass "shell syntax"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor v0.7.1 convergence checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor v0.7.2 convergence checks completed in $tmp_dir"

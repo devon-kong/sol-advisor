@@ -1,0 +1,8 @@
+{
+  "current_plugin_errors": [],
+  "in_memory_root_field_mutant_errors": [
+    "skill `orchestration` agent field `default_prompt` is not accepted by plugin validation"
+  ],
+  "mutant_rejected": true,
+  "production_written": false
+}

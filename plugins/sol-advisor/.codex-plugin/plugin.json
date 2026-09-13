@@ -1,7 +1,7 @@
 {
   "name": "sol-advisor",
-  "version": "0.7.1",
-  "description": "Codex-native selective routing with evidence-led convergence and candidate-bound review.",
+  "version": "0.7.2",
+  "description": "Codex-native selective routing with causal defect closure and candidate-bound review.",
   "author": {"name": "Daniel McAteer", "url": "https://github.com/DannyMac180"},
   "homepage": "https://github.com/DannyMac180/sol-advisor#readme",
   "repository": "https://github.com/DannyMac180/sol-advisor",
@@ -11,11 +11,11 @@
   "interface": {
     "displayName": "Sol Advisor",
     "shortDescription": "Declare a risk-gated route and use at most one auxiliary by default.",
-    "longDescription": "Sol Advisor keeps architecture, verification, and acceptance with the root. Before work begins, it declares a SELECTIVE ROUTE and one shared acceptance basis. Solo is the default; delegate uses one implementer; audit adds candidate-bound fresh review; full combines both only for a broad or high-risk exception. Findings are closed by cause and evidence instead of repeated local patching. Spawned auxiliary evidence is fail-closed.",
+    "longDescription": "Sol Advisor keeps architecture, verification, and acceptance with the root. Before work begins, it declares a SELECTIVE ROUTE and one shared acceptance basis. Solo is the default; delegate uses one implementer; audit adds candidate-bound fresh review; full combines both only for a broad or high-risk exception. Every route preserves or reproduces defects, inspects related consumers, and verifies both the rejected and valid paths. Spawned auxiliary evidence is fail-closed.",
     "developerName": "Daniel McAteer",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
     "websiteURL": "https://github.com/DannyMac180/sol-advisor",
-    "defaultPrompt": ["Use $sol-advisor:orchestration to declare a SELECTIVE ROUTE before task tools, then build and verify this feature.", "Use solo by default; select delegate, audit, or exceptional full only when the stated risk justifies it."]
+    "defaultPrompt": ["For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery. Use $sol-advisor:orchestration to declare a SELECTIVE ROUTE before task tools, then build and verify this feature.", "Use solo by default; select delegate, audit, or exceptional full only when the stated risk justifies it."]
   }
 }

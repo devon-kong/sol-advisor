@@ -24,7 +24,8 @@ installation so native roles are discovered.
 Use this prompt in the new task:
 
 ~~~text
-Use $sol-advisor:orchestration to build this feature and verify it. Declare the selective route before task tools.
+Use $sol-advisor:orchestration to build this feature and verify it. You may read this
+skill and its linked guidance first; declare the selective route before other task tools.
 ~~~
 
 ## Routes
@@ -47,10 +48,12 @@ the complete diff and reruns the requested checks. When the selected route inclu
 review, the Reviewer returns ship, fix-first, or rethink; any fix requires a new review.
 
 The root also keeps one acceptance basis across implementation and review. When a defect
-appears, it checks causally related entry points and separates implementation errors from
-evidence, architecture, environment, or review failures. Repeated corrections must change
-the failed method and seek new evidence. Reviewed Git work is bound to an exact candidate
-snapshot so a verdict cannot silently carry over to changed bytes.
+appears, it preserves or reproduces the failure, checks causally related consumers, fixes
+confirmed defects within scope, and checks the rejected path plus a valid neighbor. This
+does not automatically add agents or broad review work. Multi-file checks name the files
+and scenarios they actually ran; a green command alone is not enough. Repeated corrections
+must change the failed method and seek new evidence. Reviewed Git work is bound to an exact
+candidate snapshot so a verdict cannot silently carry over to changed bytes.
 
 For a reviewed route, final acceptance verifies the original candidate ID rather than a
 newly regenerated candidate. This keeps a valid review attached to the bytes it inspected.

@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "text": "matching candidate with expiry-during-prepare defect rejected",
+      "passed": true,
+      "evidence": "Native fresh reviewer executed in-memory90->101/expiry100 and actualTrue/[x]; returnedimplementationfinding."
+    },
+    {
+      "text": "absent required test blocks complete verification claim",
+      "passed": true,
+      "evidence": "Reviewer checked actualinventory and basic2/2suite; absenttest_late identified, not inferredfromskip0."
+    },
+    {
+      "text": "review strictly readonly with original candidate ID retained",
+      "passed": true,
+      "evidence": "Root fullproject including.git beforeafterequal and original expectedIDverifyafterexit0."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3
+  }
+}

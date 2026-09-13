@@ -35,6 +35,9 @@ CONSTRAINTS
 - <Repository conventions, safety boundaries, excluded scope, and settled decisions.>
 
 VERIFICATION
+- Plan: for a multi-file change, name required files and scenarios before running checks;
+  reject missing inputs and compare actual executed cases with the plan. Exit 0 or zero
+  skips alone is insufficient.
 - Run: <exact command>
   Success: <concrete expected result>
 - Inspect: <exact file, diff, or generated artifact>
@@ -43,6 +46,8 @@ VERIFICATION
 
 RETURN
 Return exact commands and actual evidence. A completion claim without evidence is invalid.
+At handoff, stop writes to files handed to the root until the root explicitly releases
+those files. Preserve reproduced failures and state `none` or `unverified` explicitly.
 
 IMPLEMENTATION REPORT
 STATUS: complete | partial | blocked
@@ -151,6 +156,12 @@ Inspect the actual files and accumulated change set. Judge correctness, complete
 regressions, scope discipline, interface preservation, test adequacy, and material risk.
 Derive findings from the acceptance basis and actual evidence. A proposed remedy is not
 proof of the finding. Keep scope-only improvements out of required findings.
+
+For every high-risk or repeated-omission principal material risk, offer either a fresh
+behavior challenge or actual-code equivalence reasoning. Read-only in-memory probes are
+allowed. Any write experiment belongs to the root's isolated environment. Do not require a
+full rerun when a focused challenge is sufficient, and do not approve from a hash or log
+alone.
 
 For each finding return:
 FINDING: <stable task-local ID>

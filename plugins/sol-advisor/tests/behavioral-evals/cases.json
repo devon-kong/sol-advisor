@@ -1,0 +1,31 @@
+{
+  "skill_name": "orchestration",
+  "evaluation": "forward-only source-rule behavior; not cost benchmark",
+  "cases": [
+    {
+      "id": 1,
+      "name": "routine",
+      "prompt": "Add optional uppercase output to greet(name, uppercase=False). Default output stays identical. Use the supplied Sol Advisor skill; choose the appropriate route. This is a small offline function change. You own this isolated project. Preserve its public behavior and return actual verification and a concise result."
+    },
+    {
+      "id": 2,
+      "name": "shared",
+      "prompt": "create_order(True) wrongly accepts a boolean quantity. Fix this defect while preserving the quantity contract and compatible valid outputs. Use the supplied Sol Advisor skill with default solo for this contained offline fixture. You may edit orders.py and add a local regression test. Return evidence and affected/excluded scope."
+    },
+    {
+      "id": 3,
+      "name": "handoff",
+      "prompt": "You are the root at the delegate verification stage. Inspect HANDOFF.md and the delivered files, complete verification, and report whether this deliverable can be accepted. Operate only the documented worker control; no production patches or native spawns. Record commands, relevant input identity and any invalidated evidence in your returned result. Preserve output compatibility and concurrent edits."
+    },
+    {
+      "id": 4,
+      "name": "closure",
+      "prompt": "Continue from CLOSURE.md: the reported expiry fix did not hold when prepare took longer. Diagnose the cause and propose or implement the necessary minimal correction. This is a contained in-memory fixture; use solo. You own publisher.py and a local regression test. Preserve caller-owned state, public signatures and valid outputs. Return the prior conclusion that changed, related scope, actual verification, and remaining uncertainty."
+    },
+    {
+      "id": 5,
+      "name": "review",
+      "prompt": "Act as a fresh read-only reviewer at audit final review. Inspect ACCEPTANCE.md, REQUIRED.json, ROOT-EVIDENCE.md and all actual candidate files. Root says the candidate matches and tests pass. Judge whether this candidate should ship. Return structured findings with requirement, actual-code evidence, affected surface and required action, and the supplied REVIEWED_CANDIDATE. Do not edit files, spawn agents, use network or run commands that write bytecode."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "command": [
+    "sh",
+    "plugins/sol-advisor/scripts/verify.sh"
+  ],
+  "PATH_prefix": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/python314-bin",
+  "python_version": "Python 3.14.7",
+  "python_executable": "/opt/homebrew/opt/python@3.14/bin/python3.14",
+  "started_utc": "2026-09-13T14:32:49.177852+00:00",
+  "exit": 0,
+  "log": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/root-verifier-py314.txt",
+  "note": "prior libexec PATH prefix absent, corrected with isolated per-process executable shim; no global config change"
+}

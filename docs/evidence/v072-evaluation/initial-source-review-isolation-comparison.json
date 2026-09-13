@@ -1,0 +1,10 @@
+{
+  "match": true,
+  "root_entries": {
+    "/Users/devon/claude/sol-advisor": 334,
+    "/Users/devon/claude/sol-advisor-v072-evidence-20260913/evaluations": 221,
+    "/Users/devon/claude/sol-advisor-v072-evidence-20260913/source-plugin-r3": 20
+  },
+  "observed_host": "danger-full-access/disabled",
+  "enforced_readonly": false
+}

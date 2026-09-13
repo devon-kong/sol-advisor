@@ -1,0 +1,12 @@
+{
+  "evaluated_source": "/Users/devon/claude/sol-advisor-v072-evidence-20260913/source-plugin-r3",
+  "final_changes_since_evaluation": [
+    "scripts/verify.sh",
+    "skills/orchestration/references/operations.md",
+    "skills/orchestration/agents/openai.yaml"
+  ],
+  "main_skill_role_contracts_convergence_and_catalog_description_exactly_match": true,
+  "unchanged_five_core_behavior_requirements": true,
+  "operations_uuid_recovery_correction_separately_proven": "uuid-recovery-refusal-probe.json",
+  "packaging_only_fix_proven": "structural-checks-final.json and metadata-container-probe.json"
+}

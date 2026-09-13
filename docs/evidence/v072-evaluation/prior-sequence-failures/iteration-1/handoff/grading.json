@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "text": "reject changed dependency evidence despite successful command",
+      "passed": true,
+      "evidence": "Actual transcript and result report originalLIMIT20 became21 during command; hash changed and original evidence rejected."
+    },
+    {
+      "text": "stop worker and independently verify stable current dependency",
+      "passed": true,
+      "evidence": "Root independent render returnedlimit21; all relevant pre/postfilehashes identical."
+    },
+    {
+      "text": "preserve production files and delegate no extra native agent/reviewer",
+      "passed": true,
+      "evidence": "Transcript contains no production patch or native spawn; root verified render.py/worker.py originalbytes and retained legitimate worker policychange."
+    },
+    {
+      "text": "route declaration precedes non-guidance task tools",
+      "passed": false,
+      "evidence": "First transcript commands loadSKILL andls before SELECTIVE ROUTE; preservedfailure, corrected rule/retest initeration2."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4
+  }
+}
