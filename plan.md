@@ -73,3 +73,44 @@ then commit/pushverifiedfinalcandidatewithoutforce, inspectremoteSHA/filecomplet
 Preserveunrelateduntracked installedv071admission and localonlycaches/scratch; noinstall
 or globalconfigchanges. Initialfreshreview V072-RUNTIME-UUID-001 fix-first acknowledged;
 correctactiveUUIDrecoverydocument/verification first, then obtainnewfreshreview.
+
+## 2026-09-14 artifact layout and retention optimization
+
+Scope: improve future Sol Advisor artifact rules only. Do not move, delete, or inspect
+historical business evidence further. Preserve unrelated dirty work and installed caches;
+this source update does not authorize installation, publication, commit, or push.
+
+Use one external artifact root, one workspace identity, and one stable task directory.
+Rounds and auxiliary lanes stay beneath that task. Keep disposable work separate from
+retained acceptance inputs from the start, so final manifests never need a path-breaking
+archive move. Formal tests and project documentation use existing repository conventions;
+post-freeze review records remain outside the candidate. Ordinary work stays lightweight.
+
+Root owns source guidance, the conditional artifact reference, README explanation, and
+validation. Change no candidate schema, role pins, route selection, or installer behavior.
+Check cross-reference consistency, complete plugin verification, skill/plugin validation,
+and whitespace. Report that guidance validation is not proof of future agent compliance.
+
+### 2026-09-14 user correction: keep artifacts inside the workspace
+
+Supersedes the external-default layout above for future tasks. Use workspace-root
+`.agent-artifacts/<task-id>/{work,archive}` and an anchored Git ignore entry. Candidate
+snapshots exclude only untracked descendants of that reserved root, never tracked files
+or similarly named/nested paths. Explicit `--input` still binds required archive inputs.
+Permit internal manifests only within that stable directory; reject aliases and overlap.
+
+Bind the inventory policy into candidate identity, keep old schema2 manifests on their
+original policy, and retain outside manifests for compatibility. Do not migrate old business
+evidence or install/publish this update. Add behavioral tests for ignored/unignored artifact
+writes, explicit input drift, tracked and neighboring source changes, manifest self-binding,
+symlink/overlap failures, and old-policy verification. Run complete verification and a
+fresh independent forward check of the revised tool before reporting its limits.
+
+### 2026-09-14 publication authority
+
+User explicitly authorized commit and push to GitHub. Publish the artifact-layout update
+as 0.7.3, with manifest/verifier version alignment. Stage only the intended source, tests,
+guidance, README, ignore rule, and this plan; keep local evidence and unrelated untracked
+assets untouched. Revalidate release metadata and staged bytes, bind a new staged candidate,
+commit and push without force, then verify remote SHA and every published file. No local
+plugin installation or global configuration change is authorized by this publication.

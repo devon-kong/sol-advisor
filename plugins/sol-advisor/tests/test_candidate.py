@@ -729,5 +729,192 @@ class CandidateToolTests(unittest.TestCase):
         self.assertEqual(result.stderr, "")
 
 
+    def internal_archive(self) -> Path:
+        archive = self.repo / ".agent-artifacts" / "task" / "archive"
+        archive.mkdir(parents=True)
+        return archive
+
+    def test_internal_manifest_ignores_generated_writes_but_binds_source(self) -> None:
+        archive = self.internal_archive()
+        work = archive.parent / "work"
+        work.mkdir()
+        (work / "initial.log").write_text("before\n")
+        self.manifest = archive / "candidate.json"
+        snapshot = self.snapshot()
+        value = json.loads(self.manifest.read_text())
+        self.assertNotIn(".agent-artifacts/task/work/initial.log", {e["path"] for e in value["entries"]})
+        self.assertIn("except-root-agent-artifacts", value["selection"]["repo_inventory"])
+        (work / "initial.log").write_text("changed\n")
+        (archive / "review.md").write_text("review completed\n")
+        (archive / "report.md").write_text("final result\n")
+        (work / "new.log").write_text("new\n")
+        result, payload = self.verify("--expected-candidate-id", str(snapshot["candidate_id"]))
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(payload["changes"], [])
+        self.assertEqual(payload["candidate_id"], snapshot["candidate_id"])
+        (self.repo / "tracked.txt").write_text("source changed\n")
+        result, payload = self.verify()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(payload["changes"], [{"scope": "repo", "path": "tracked.txt", "change": "modified"}])
+
+    def test_ignored_archive_explicit_input_changes_and_removal_are_detected(self) -> None:
+        (self.repo / ".gitignore").write_text("/.agent-artifacts/\n")
+        archive = self.internal_archive()
+        selected = archive / "delivery.tgz"
+        selected.write_bytes(b"final package")
+        self.manifest = archive / "candidate.json"
+        self.snapshot("--input", str(selected))
+        (archive / "report.md").write_text("unbound report\n")
+        result, _ = self.verify()
+        self.assertEqual(result.returncode, 0)
+        selected.write_bytes(b"changed package")
+        result, payload = self.verify()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(payload["changes"], [{"scope": "input", "path": str(selected), "change": "modified"}])
+        selected.unlink()
+        result, payload = self.verify()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(payload["changes"][0]["change"], "modified")
+
+    def test_tracked_artifacts_are_never_automatically_excluded(self) -> None:
+        archive = self.internal_archive()
+        selected = archive / "tracked-evidence.txt"
+        selected.write_text("tracked\n")
+        self.git("add", str(selected.relative_to(self.repo)))
+        self.manifest = archive / "candidate.json"
+        self.snapshot()
+        selected.write_text("changed\n")
+        result, payload = self.verify()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(payload["changes"][0]["path"], str(selected.relative_to(self.repo)))
+
+    def test_nested_and_similarly_named_artifact_paths_remain_bound(self) -> None:
+        self.internal_archive()
+        relatives = ["nested/.agent-artifacts/source.txt", ".agent-artifacts-other/source.txt", ".agent-artifacts.txt"]
+        for relative in relatives:
+            p = self.repo / relative
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("before\n")
+        self.snapshot()
+        for relative in relatives:
+            (self.repo / relative).write_text("after\n")
+        result, payload = self.verify()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual({e["path"] for e in payload["changes"]}, set(relatives))
+
+    def test_legacy_inventory_is_not_silently_narrowed(self) -> None:
+        self.snapshot()
+        value = json.loads(self.manifest.read_text())
+        original_id = value["candidate_id"]
+        value["selection"]["repo_inventory"] = "tracked-and-unignored-untracked"
+        self.write_rehashed_manifest(value)
+        legacy_id = json.loads(self.manifest.read_text())["candidate_id"]
+        self.assertNotEqual(original_id, legacy_id)
+        result, payload = self.verify("--expected-candidate-id", legacy_id)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        archive = self.internal_archive()
+        (archive / "new.log").write_text("new\n")
+        result, payload = self.verify("--expected-candidate-id", legacy_id)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(payload["changes"][0]["path"], ".agent-artifacts/task/archive/new.log")
+
+    def test_legacy_manifest_cannot_move_inside_reserved_root(self) -> None:
+        self.snapshot()
+        value = json.loads(self.manifest.read_text())
+        value["selection"]["repo_inventory"] = "tracked-and-unignored-untracked"
+        self.write_rehashed_manifest(value)
+        contents = self.manifest.read_bytes()
+        self.manifest = self.internal_archive() / "candidate.json"
+        self.manifest.write_bytes(contents)
+        result, payload = self.verify()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("legacy manifests must remain outside", payload["error"])
+
+    def test_internal_output_self_binding_and_tracked_output_fail_without_writes(self) -> None:
+        archive = self.internal_archive()
+        output = archive / "candidate.json"
+        output.write_text("sentinel\n")
+        result = self.tool("snapshot", "--repo", str(self.repo), "--output", str(output), "--input", str(output))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("explicit candidate input", json.loads(result.stdout)["error"])
+        self.assertEqual(output.read_text(), "sentinel\n")
+        self.git("add", str(output.relative_to(self.repo)))
+        result = self.tool("snapshot", "--repo", str(self.repo), "--output", str(output))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("repository candidate input", json.loads(result.stdout)["error"])
+        self.assertEqual(output.read_text(), "sentinel\n")
+
+    def test_manifest_cannot_replace_the_missing_artifact_root_with_a_file(self) -> None:
+        root = self.repo / ".agent-artifacts"
+        result = self.tool("snapshot", "--repo", str(self.repo), "--output", str(root))
+        self.assertEqual(result.returncode, 2)
+        self.assertFalse(root.exists())
+
+    def test_internal_output_hardlink_to_source_fails_without_writes(self) -> None:
+        output = self.internal_archive() / "candidate.json"
+        os.link(self.repo / "tracked.txt", output)
+        result = self.tool("snapshot", "--repo", str(self.repo), "--output", str(output))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("repository candidate input", json.loads(result.stdout)["error"])
+        self.assertEqual((self.repo / "tracked.txt").read_text(), "one\n")
+        self.assertEqual(output.read_text(), "one\n")
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks are unavailable")
+    def test_artifact_root_alias_or_file_fails_closed(self) -> None:
+        self.snapshot()
+        sentinel = self.manifest.read_bytes()
+        root = self.repo / ".agent-artifacts"
+        target = self.base / "elsewhere"
+        target.mkdir()
+        for replacement in ["symlink", "file"]:
+            with self.subTest(replacement=replacement):
+                if replacement == "symlink":
+                    os.symlink(target, root)
+                else:
+                    root.write_text("not a directory\n")
+                result, payload = self.verify()
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("artifact root must be a real directory", payload["error"])
+                result = self.tool("snapshot", "--repo", str(self.repo), "--output", str(self.manifest))
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(self.manifest.read_bytes(), sentinel)
+                root.unlink()
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks are unavailable")
+    def test_internal_manifest_parent_alias_and_final_link_fail_closed(self) -> None:
+        archive = self.internal_archive()
+        self.snapshot()
+        target = self.base / "target"
+        target.mkdir()
+        (target / "candidate.json").write_bytes(self.manifest.read_bytes())
+        alias = archive / "alias"
+        os.symlink(target, alias)
+        linked = archive / "linked.json"
+        os.symlink(self.manifest, linked)
+        workspace_alias = self.base / "workspace-alias"
+        os.symlink(self.repo, workspace_alias)
+        (archive / "candidate.json").write_bytes(self.manifest.read_bytes())
+        indirect = workspace_alias / ".agent-artifacts" / "task" / "archive" / "candidate.json"
+        for output in [alias / "candidate.json", linked, indirect]:
+            with self.subTest(output=output):
+                result = self.tool("snapshot", "--repo", str(self.repo), "--output", str(output))
+                self.assertEqual(result.returncode, 2)
+                result = self.tool("verify", "--manifest", str(output))
+                self.assertEqual(result.returncode, 2)
+        self.assertEqual((target / "candidate.json").read_bytes(), self.manifest.read_bytes())
+
+    def test_inventory_policy_cannot_be_arbitrarily_extended(self) -> None:
+        for policy in ["ignore-everything", [], {}, None]:
+            with self.subTest(policy=policy):
+                self.snapshot()
+                value = json.loads(self.manifest.read_text())
+                value["selection"]["repo_inventory"] = policy
+                self.write_rehashed_manifest(value)
+                result, payload = self.verify()
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("repository inventory", payload["error"])
+                self.assertEqual(result.stderr, "")
+
+
 if __name__ == "__main__":
     unittest.main()

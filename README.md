@@ -58,6 +58,14 @@ candidate snapshot so a verdict cannot silently carry over to changed bytes.
 For a reviewed route, final acceptance verifies the original candidate ID rather than a
 newly regenerated candidate. This keeps a valid review attached to the bytes it inspected.
 
+Generated material uses `<workspace>/.agent-artifacts/<task-id>/`, with correction rounds
+beneath it and an anchored project Git ignore entry. New candidates exclude untracked
+material under that exact root; tracked files and explicit acceptance inputs stay bound.
+Disposable `work/` is separate from a stable, minimal
+`archive/`; required reviewed inputs live at their retained paths before candidate binding.
+Permanent tests and project documentation follow existing repository conventions. Ordinary
+edits need no mandatory archive, and the convention does not authorize deleting old evidence.
+
 ## Updating
 
 Update the marketplace plugin, reinstall the companion roles, and start a new task:

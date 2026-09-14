@@ -175,11 +175,11 @@ if grep -Eq '^default_prompt:' "$ui"; then fail "UI metadata has a root-level de
 pass "UI metadata exposes orchestration and its default route prompt"
 
 jq empty "$manifest"
-[ "$(jq -r '.version' "$manifest")" = 0.7.2 ] || fail "manifest version is not 0.7.2"
+[ "$(jq -r '.version' "$manifest")" = 0.7.3 ] || fail "manifest version is not 0.7.3"
 grep -Fq 'SELECTIVE ROUTE' "$manifest" || fail "manifest omits route declaration"
 grep -Fq 'Spawned auxiliary evidence is fail-closed' "$manifest" || fail "manifest omits auxiliary fail-closed rule"
 grep -Fq 'For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery.' "$manifest" || fail "manifest omits startup sequencing"
-pass "manifest JSON and v0.7.2 discovery copy"
+pass "manifest JSON and v0.7.3 discovery copy"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path
@@ -608,9 +608,9 @@ candidate_output=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$c
   fail "candidate snapshot and verification behavior failed"
 }
 printf '%s\n' "$candidate_output"
-printf '%s\n' "$candidate_output" | grep -Eq 'Ran 19 tests' || fail "candidate suite no longer has the required 19 tests"
+printf '%s\n' "$candidate_output" | grep -Eq 'Ran 31 tests' || fail "candidate suite no longer has the required 31 tests"
 printf '%s\n' "$candidate_output" | grep -Eq '^OK$' || fail "candidate suite did not report OK"
-pass "19 candidate snapshot and verification tests"
+pass "31 candidate snapshot and verification tests"
 behavioral_output=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$candidate_tests" -p 'test_behavioral_fixtures.py' 2>&1) || {
   printf '%s\n' "$behavioral_output" >&2
   fail "behavioral fixture calibration failed"
@@ -625,4 +625,4 @@ sh -n "$runtime_inspector"
 sh -n "$script_dir/verify.sh"
 pass "shell syntax"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor v0.7.2 convergence checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor v0.7.3 convergence checks completed in $tmp_dir"

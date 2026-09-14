@@ -16,6 +16,9 @@ from typing import Any
 
 
 SCHEMA_VERSION = 2
+ARTIFACT_DIRECTORY = ".agent-artifacts"
+LEGACY_INVENTORY = "tracked-and-unignored-untracked"
+ARTIFACT_INVENTORY = "tracked-and-unignored-untracked-except-root-agent-artifacts"
 
 
 class CandidateError(Exception):
@@ -78,9 +81,37 @@ def filesystem_encodable(value: str) -> bool:
         return False
 
 
-def require_manifest_outside_repo(path: Path, repo: Path) -> None:
-    if is_within(path, repo):
-        raise CandidateError("candidate manifest must be outside the candidate repository")
+def artifact_descendant(path: str) -> bool:
+    return path.startswith(ARTIFACT_DIRECTORY + "/")
+
+
+def require_artifact_directory(repo: Path) -> None:
+    root = repo / ARTIFACT_DIRECTORY
+    try:
+        details = os.lstat(root)
+    except FileNotFoundError:
+        return
+    if not stat.S_ISDIR(details.st_mode):
+        raise CandidateError(f"artifact root must be a real directory, not a symlink or file: {root}")
+
+
+def reject_artifact_parent_alias(raw: str, resolved: Path, repo: Path) -> None:
+    requested = Path(os.path.abspath(os.fspath(Path(raw).expanduser())))
+    root = repo / ARTIFACT_DIRECTORY
+    if (is_within(requested, root) or is_within(resolved, root)) and not parents_have_no_symlinks(requested):
+        raise CandidateError("internal candidate manifest has a symlinked parent")
+
+
+def require_manifest_location(path: Path, repo: Path, inventory_policy: str) -> None:
+    if not is_within(path, repo):
+        return
+    artifact_root = repo / ARTIFACT_DIRECTORY
+    if inventory_policy == ARTIFACT_INVENTORY and path != artifact_root and is_within(path, artifact_root):
+        return
+    raise CandidateError(
+        "candidate manifest inside the repository is allowed only under root .agent-artifacts "
+        "with the artifact-excluding inventory policy; legacy manifests must remain outside"
+    )
 
 
 def canonical_repo_path(path: str) -> bool:
@@ -259,7 +290,13 @@ def inspect_path(path: Path, *, allow_missing: bool) -> dict[str, Any]:
     raise CandidateError(f"unsupported candidate input type: {path}")
 
 
-def repo_inventory(repo: Path) -> list[tuple[str, dict[str, str] | None]]:
+def repo_inventory(
+    repo: Path, inventory_policy: str = ARTIFACT_INVENTORY
+) -> list[tuple[str, dict[str, str] | None]]:
+    if inventory_policy not in {LEGACY_INVENTORY, ARTIFACT_INVENTORY}:
+        raise CandidateError("unsupported repository inventory policy")
+    if inventory_policy == ARTIFACT_INVENTORY:
+        require_artifact_directory(repo)
     tracked_output = run_git(repo, "ls-files", "-z", "--stage")
     assert tracked_output is not None
     paths: dict[str, dict[str, str] | None] = {}
@@ -291,6 +328,8 @@ def repo_inventory(repo: Path) -> list[tuple[str, dict[str, str] | None]]:
     assert other_output is not None
     for raw_path in (item for item in other_output.split(b"\0") if item):
         path = os.fsdecode(raw_path)
+        if inventory_policy == ARTIFACT_INVENTORY and artifact_descendant(path):
+            continue
         if path in paths:
             raise CandidateError(f"duplicate worktree inventory entry: {path}")
         paths[path] = None
@@ -310,10 +349,11 @@ def normalize_explicit_inputs(values: list[str]) -> list[str]:
 
 
 def build_candidate(
-    repo: Path, explicit_inputs: list[str], *, explicit_allow_missing: bool = False
+    repo: Path, explicit_inputs: list[str], *, explicit_allow_missing: bool = False,
+    inventory_policy: str = ARTIFACT_INVENTORY,
 ) -> dict[str, Any]:
     entries: list[dict[str, Any]] = []
-    for relative, index in repo_inventory(repo):
+    for relative, index in repo_inventory(repo, inventory_policy):
         path = repo / relative
         try:
             resolved_parent = path.parent.resolve(strict=False)
@@ -328,7 +368,7 @@ def build_candidate(
         entries.append({"scope": "input", "path": absolute, **details})
     entries.sort(key=lambda item: (item["scope"], os.fsencode(item["path"])))
     selection = {
-        "repo_inventory": "tracked-and-unignored-untracked",
+        "repo_inventory": inventory_policy,
         "explicit_inputs": explicit_inputs,
     }
     identity = {
@@ -389,7 +429,9 @@ def validate_manifest(value: Any) -> dict[str, Any]:
         raise CandidateError("candidate manifest selection is invalid")
     if set(selection) != {"repo_inventory", "explicit_inputs"}:
         raise CandidateError("candidate manifest selection fields are invalid")
-    if selection.get("repo_inventory") != "tracked-and-unignored-untracked":
+    if not isinstance(selection.get("repo_inventory"), str) or selection["repo_inventory"] not in {
+        LEGACY_INVENTORY, ARTIFACT_INVENTORY
+    }:
         raise CandidateError("candidate manifest repository inventory is unsupported")
     explicit = selection.get("explicit_inputs")
     if not isinstance(explicit, list) or any(
@@ -540,6 +582,19 @@ def reject_output_overlap(output: Path, explicit_inputs: list[str]) -> None:
             )
 
 
+def reject_repo_output_overlap(output: Path, repo: Path, manifest: dict[str, Any]) -> None:
+    output_identity = existing_regular_identity(output)
+    for entry in manifest["entries"]:
+        if entry["scope"] != "repo":
+            continue
+        selected = repo / entry["path"]
+        if selected == output or (
+            output_identity is not None
+            and existing_regular_identity(selected) == output_identity
+        ):
+            raise CandidateError(f"candidate manifest output overlaps a repository candidate input: {selected}")
+
+
 def valid_candidate_id(value: str) -> bool:
     return (
         value.startswith("sha256:")
@@ -572,11 +627,14 @@ def compare_entries(
 
 def snapshot_command(args: argparse.Namespace) -> int:
     repo = resolve_repo(args.repo)
+    require_artifact_directory(repo)
     output = resolve_manifest_output(args.output)
-    require_manifest_outside_repo(output, repo)
+    reject_artifact_parent_alias(args.output, output, repo)
+    require_manifest_location(output, repo, ARTIFACT_INVENTORY)
     explicit = normalize_explicit_inputs(args.input)
     manifest = build_candidate(repo, explicit)
     reject_output_overlap(output, explicit)
+    reject_repo_output_overlap(output, repo, manifest)
     write_manifest(output, manifest)
     print(
         json.dumps(
@@ -597,17 +655,24 @@ def verify_command(args: argparse.Namespace) -> int:
         args.expected_candidate_id
     ):
         raise CandidateError("expected candidate ID has invalid syntax")
-    manifest_path = Path(args.manifest).expanduser().resolve(strict=True)
+    manifest_path = resolve_manifest_output(args.manifest)
     try:
         with manifest_path.open("r", encoding="utf-8") as handle:
             manifest = validate_manifest(json.load(handle, object_pairs_hook=unique_json_object))
     except (OSError, json.JSONDecodeError) as exc:
         raise CandidateError(f"cannot read candidate manifest {manifest_path}: {exc}") from exc
     repo = resolve_repo(manifest["repo"])
-    require_manifest_outside_repo(manifest_path, repo)
+    inventory_policy = manifest["selection"]["repo_inventory"]
+    if inventory_policy == ARTIFACT_INVENTORY:
+        require_artifact_directory(repo)
+        reject_artifact_parent_alias(args.manifest, manifest_path, repo)
+    require_manifest_location(manifest_path, repo, inventory_policy)
+    reject_output_overlap(manifest_path, manifest["selection"]["explicit_inputs"])
     current = build_candidate(
-        repo, manifest["selection"]["explicit_inputs"], explicit_allow_missing=True
+        repo, manifest["selection"]["explicit_inputs"], explicit_allow_missing=True,
+        inventory_policy=inventory_policy,
     )
+    reject_repo_output_overlap(manifest_path, repo, current)
     changes = compare_entries(manifest["entries"], current["entries"])
     expected_matches = (
         args.expected_candidate_id is None
@@ -639,12 +704,15 @@ def parser() -> argparse.ArgumentParser:
     commands = result.add_subparsers(dest="command", required=True)
     snapshot = commands.add_parser("snapshot", help="write a candidate manifest")
     snapshot.add_argument("--repo", required=True, help="Git working tree to snapshot")
-    snapshot.add_argument("--output", required=True, help="manifest path outside the repository")
+    snapshot.add_argument(
+        "--output", required=True,
+        help="manifest path under repository-root .agent-artifacts (or outside for compatibility)",
+    )
     snapshot.add_argument(
         "--input",
         action="append",
         default=[],
-        help="ignored or repository-external input to include; repeat as needed",
+        help="artifact, ignored, or repository-external input to bind explicitly; repeat as needed",
     )
     snapshot.set_defaults(handler=snapshot_command)
     verify = commands.add_parser("verify", help="compare a manifest with current inputs")

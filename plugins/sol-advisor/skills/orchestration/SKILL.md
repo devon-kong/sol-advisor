@@ -18,6 +18,13 @@ procedures. For high-risk, cross-module, long-running, resumed, or correction-lo
 read [references/convergence.md](references/convergence.md) and use only the artifacts the
 task needs.
 
+Before creating task artifacts, read [references/artifacts.md](references/artifacts.md).
+Use one task directory under workspace-root `.agent-artifacts/` for generated material;
+put correction rounds and auxiliary lanes beneath it, rather than creating more project
+siblings. Keep disposable work separate
+from retained acceptance inputs before binding a candidate. Routine work needs no artifact
+directory unless it actually produces files, and no mandatory archive or manifest.
+
 ## Declare the route before task tools
 
 Before declaring a route, the root may read this skill and the references directly linked

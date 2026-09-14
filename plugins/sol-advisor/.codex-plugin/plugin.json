@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Codex-native selective routing with causal defect closure and candidate-bound review.",
   "author": {"name": "Daniel McAteer", "url": "https://github.com/DannyMac180"},
   "homepage": "https://github.com/DannyMac180/sol-advisor#readme",

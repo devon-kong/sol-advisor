@@ -132,6 +132,10 @@ insufficient without those cases and their expected results.
 
 ## Stable candidate binding
 
+Select the stable task archive location using [artifacts.md](artifacts.md) before snapshot.
+Put the manifest and required external inputs at their retained paths from the start;
+do not move a reviewed directory from temporary work to an archive afterward.
+
 For `audit` and `full`, bind root verification, the reviewer return, and final acceptance
 to the same candidate. Use the shipped tool for a Git working tree when its inventory
 covers the reviewed inputs:
@@ -143,8 +147,14 @@ candidate_id="$(python3 "$candidate_tool" snapshot --repo "$repo" --output "$man
 python3 "$candidate_tool" verify --manifest "$manifest" --expected-candidate-id "$candidate_id"
 ~~~
 
-The manifest must live outside the candidate repository. Snapshot includes tracked files,
-unignored untracked files, actual worktree bytes and executable state, and each supported
+Default to `<repo>/.agent-artifacts/<task-id>/archive/manifests/` for the manifest.
+Only that repository-root artifact namespace permits internal manifests; other internal
+locations are rejected. External manifests remain supported for compatibility. New snapshot
+selection excludes untracked descendants of root `.agent-artifacts/`, never tracked files
+or nested/similarly named directories. The policy is hashed into candidate identity;
+existing schema2 manifests keep their original recorded policy and external-only location.
+Snapshot includes tracked files, other unignored untracked files, actual worktree bytes
+and executable state, and each supported
 tracked entry's Git index mode and object ID. Add each ignored or repository-external input
 that affects acceptance with a repeatable `--input <path>`. Explicit inputs reject a
 symlinked parent directory so a mutable alias cannot silently bind a different file; a
@@ -188,7 +198,7 @@ git status --short
 git diff --stat
 ~~~
 
-The verifier covers the v0.7.2 manifest, exact role inventory/pins, installer safety and
+The verifier covers the v0.7.3 manifest, exact role inventory/pins, installer safety and
 selected-role isolation, all runtime-role fixtures, route and convergence contracts,
 candidate-tool behavior, README scope, JSON/TOML parsing, and shell/Python syntax. The
 candidate behavior suite was verified on Python 3.12 and Python 3.14; do not treat that

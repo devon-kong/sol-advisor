@@ -84,6 +84,11 @@ business reruns. Preserve evidence that does not depend on the changed bytes.
 Use an existing handoff or status artifact when one exists. Otherwise keep one short
 record separate from candidate inputs that need to remain stable:
 
+When files are needed, use the single task path in [artifacts.md](artifacts.md). Retain
+material failures and required resume inputs; preserving evidence does not require keeping
+every duplicate working copy forever. Record that task path in the existing handoff rather
+than opening a separate top-level directory for each closure or review.
+
 ~~~text
 ACCEPTANCE: <version and source>
 CANDIDATE: <candidate ID and manifest, or explicit artifact identifiers>
