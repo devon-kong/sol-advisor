@@ -1,0 +1,79 @@
+{
+  "notice": "Offline evaluator calibration only; never count as native Agent evidence.",
+  "cases": [
+    {
+      "id": "parallel-valid",
+      "route": "full",
+      "expected": true,
+      "events": [
+        {"type": "terra-start", "role": "peer", "work_key": "api"},
+        {"type": "terra-start", "role": "peer", "work_key": "docs"},
+        {"type": "delivery", "work_key": "api", "delivery_id": "D-api", "self_test": true, "self_review": true, "writes_stopped": true},
+        {"type": "delivery", "work_key": "docs", "delivery_id": "D-docs", "self_test": true, "self_review": true, "writes_stopped": true},
+        {"type": "assemble", "selected_delivery_ids": ["D-api", "D-docs"], "semantic_merge": false},
+        {"type": "sol-review", "actor": "sol", "context_id": "sol-1", "candidate_id": "C-1", "status": "valid", "critical": "pass", "verdict": "ship", "writes_product": false},
+        {"type": "final-accept", "candidate_id": "C-1", "fresh_verify_match": true}
+      ]
+    },
+    {
+      "id": "lead-terra-invalid",
+      "route": "full",
+      "expected": false,
+      "events": [
+        {"type": "terra-start", "role": "lead", "work_key": "integration"},
+        {"type": "delivery", "delivery_id": "D-1", "self_test": true, "self_review": true, "writes_stopped": true},
+        {"type": "assemble", "selected_delivery_ids": ["D-1"], "semantic_merge": true}
+      ]
+    },
+    {
+      "id": "fresh-correction-valid",
+      "route": "full",
+      "expected": true,
+      "events": [
+        {"type": "terra-start", "role": "peer", "work_key": "core"},
+        {"type": "delivery", "delivery_id": "D-1", "self_test": true, "self_review": true, "writes_stopped": true},
+        {"type": "assemble", "selected_delivery_ids": ["D-1"], "semantic_merge": false},
+        {"type": "sol-review", "actor": "sol", "context_id": "sol-old", "candidate_id": "C-1", "status": "valid", "critical": "fail", "verdict": "fix-first", "writes_product": false},
+        {"type": "sol-review", "actor": "sol", "context_id": "sol-fresh", "candidate_id": "C-2", "status": "valid", "critical": "pass", "verdict": "ship", "completed_prior_remaining_scope": true, "writes_product": false},
+        {"type": "final-accept", "candidate_id": "C-2", "fresh_verify_match": true}
+      ]
+    },
+    {
+      "id": "old-verdict-invalid",
+      "route": "full",
+      "expected": false,
+      "events": [
+        {"type": "terra-start", "role": "peer", "work_key": "core"},
+        {"type": "delivery", "delivery_id": "D-1", "self_test": true, "self_review": true, "writes_stopped": true},
+        {"type": "assemble", "selected_delivery_ids": ["D-1"], "semantic_merge": false},
+        {"type": "sol-review", "actor": "sol", "context_id": "sol-1", "candidate_id": "C-old", "status": "valid", "critical": "pass", "verdict": "ship", "writes_product": false},
+        {"type": "final-accept", "candidate_id": "C-new", "fresh_verify_match": true}
+      ]
+    },
+    {
+      "id": "partial-recovery-invalid",
+      "route": "full",
+      "expected": false,
+      "events": [
+        {"type": "recovery", "facts": "partial", "reran_side_effect": true}
+      ]
+    },
+    {
+      "id": "solo-preserved",
+      "route": "solo",
+      "expected": true,
+      "events": [
+        {"type": "root-edit"},
+        {"type": "root-verify"}
+      ]
+    },
+    {
+      "id": "solo-contaminated",
+      "route": "solo",
+      "expected": false,
+      "events": [
+        {"type": "terra-start", "role": "peer", "work_key": "small-change"}
+      ]
+    }
+  ]
+}

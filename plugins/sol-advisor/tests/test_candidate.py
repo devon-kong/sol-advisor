@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import hashlib
 import os
@@ -13,6 +14,14 @@ import unittest
 
 PLUGIN = Path(__file__).resolve().parents[1]
 TOOL = PLUGIN / "scripts" / "candidate.py"
+
+
+def load_candidate_module():
+    spec = importlib.util.spec_from_file_location("sol_advisor_candidate", TOOL)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 class CandidateToolTests(unittest.TestCase):
@@ -95,6 +104,19 @@ class CandidateToolTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(payload["status"], "match")
         self.assertTrue(payload["head_changed"])
+
+    def test_current_candidate_helper_reuses_complete_scoped_selection(self) -> None:
+        selected = self.repo / "selected"
+        selected.mkdir()
+        (selected / "value.txt").write_text("v1\n", encoding="utf-8")
+        self.git("add", "selected/value.txt")
+        self.git("commit", "-qm", "scoped helper")
+        self.snapshot("--scope", "selected")
+        module = load_candidate_module()
+        manifest = module.validate_manifest(json.loads(self.manifest.read_text(encoding="utf-8")))
+        current = module.current_candidate_from_manifest(manifest)
+        self.assertEqual(current["candidate_id"], manifest["candidate_id"])
+        self.assertEqual(current["selection"], manifest["selection"])
 
     def test_tracks_modified_deleted_and_new_worktree_paths(self) -> None:
         (self.repo / "untracked.txt").write_text("present\n", encoding="utf-8")
@@ -914,6 +936,142 @@ class CandidateToolTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("repository inventory", payload["error"])
                 self.assertEqual(result.stderr, "")
+
+    def test_scoped_selection_is_explicit_versioned_and_binds_head_and_bytes(self) -> None:
+        selected = self.repo / "selected"
+        history = self.repo / "history"
+        selected.mkdir()
+        history.mkdir()
+        chosen = selected / "chosen.txt"
+        ignored_history = history / "old.txt"
+        chosen.write_text("chosen-v1\n", encoding="utf-8")
+        ignored_history.write_text("history-v1\n", encoding="utf-8")
+        self.git("add", "selected/chosen.txt", "history/old.txt")
+        self.git("commit", "-qm", "scoped fixture")
+
+        result = self.tool(
+            "snapshot", "--repo", str(self.repo), "--output", str(self.manifest),
+            "--scope", "selected",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        value = json.loads(self.manifest.read_text(encoding="utf-8"))
+        self.assertEqual(value["selection"]["repo_inventory"], "scoped-literal-v1")
+        self.assertEqual(value["selection"]["scoped_paths"], ["selected"])
+        self.assertEqual(value["selection"]["scope_head"], self.git("rev-parse", "HEAD").stdout.strip())
+        repo_paths = {entry["path"] for entry in value["entries"] if entry["scope"] == "repo"}
+        self.assertEqual(repo_paths, {"selected/chosen.txt"})
+
+        before = chosen.stat()
+        chosen.write_text("chosen-v2\n", encoding="utf-8")
+        os.utime(chosen, ns=(before.st_atime_ns, before.st_mtime_ns))
+        result, payload = self.verify()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(payload["changes"], [{"scope": "repo", "path": "selected/chosen.txt", "change": "modified"}])
+
+        chosen.write_text("chosen-v1\n", encoding="utf-8")
+        self.git("commit", "--allow-empty", "-qm", "new head")
+        result, payload = self.verify()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(payload["changes"], [])
+        self.assertTrue(payload["head_changed"])
+
+    def test_scoped_selection_rejects_unbound_dirty_or_untracked_outside_scope(self) -> None:
+        selected = self.repo / "selected"
+        selected.mkdir()
+        (selected / "chosen.txt").write_text("chosen\n", encoding="utf-8")
+        config = self.repo / "public.conf"
+        config.write_text("one\n", encoding="utf-8")
+        self.git("add", "selected/chosen.txt", "public.conf")
+        self.git("commit", "-qm", "scoped fixture")
+        config.write_text("two\n", encoding="utf-8")
+        result = self.tool(
+            "snapshot", "--repo", str(self.repo), "--output", str(self.manifest),
+            "--scope", "selected",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("outside scoped selection", json.loads(result.stdout)["error"])
+
+        result = self.tool(
+            "snapshot", "--repo", str(self.repo), "--output", str(self.manifest),
+            "--scope", "selected", "--input", str(config),
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        config.write_text("three\n", encoding="utf-8")
+        result, payload = self.verify()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(str(config), {item["path"] for item in payload["changes"]})
+
+        config.write_text("two\n", encoding="utf-8")
+        outside = self.repo / "new-test.py"
+        outside.write_text("print('new')\n", encoding="utf-8")
+        result = self.tool(
+            "snapshot", "--repo", str(self.repo), "--output", str(self.base / "other.json"),
+            "--scope", "selected", "--input", str(config),
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("outside scoped selection", json.loads(result.stdout)["error"])
+
+    def test_scoped_verify_rejects_new_out_of_scope_change(self) -> None:
+        selected = self.repo / "selected"
+        selected.mkdir()
+        (selected / "chosen.txt").write_text("chosen\n", encoding="utf-8")
+        outside = self.repo / "outside.txt"
+        outside.write_text("stable\n", encoding="utf-8")
+        self.git("add", "selected/chosen.txt", "outside.txt")
+        self.git("commit", "-qm", "scoped fixture")
+        result = self.tool(
+            "snapshot", "--repo", str(self.repo), "--output", str(self.manifest),
+            "--scope", "selected",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        outside.write_text("changed\n", encoding="utf-8")
+        result = self.tool("verify", "--manifest", str(self.manifest))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("outside scoped selection", json.loads(result.stdout)["error"])
+
+    def test_scoped_paths_reject_alias_overlap_and_pathspec_syntax(self) -> None:
+        (self.repo / "selected").mkdir()
+        (self.repo / "selected" / "file.txt").write_text("x\n", encoding="utf-8")
+        self.git("add", "selected/file.txt")
+        self.git("commit", "-qm", "scoped fixture")
+        cases = [
+            ["../selected"],
+            [str((self.repo / "selected").resolve())],
+            [":(glob)**"],
+            ["selected", "selected/file.txt"],
+            ["selected/../selected"],
+        ]
+        for scopes in cases:
+            with self.subTest(scopes=scopes):
+                arguments = [
+                    "snapshot", "--repo", str(self.repo), "--output", str(self.manifest),
+                ]
+                for scope in scopes:
+                    arguments.extend(["--scope", scope])
+                result = self.tool(*arguments)
+                self.assertEqual(result.returncode, 2)
+                self.assertFalse(self.manifest.exists())
+
+    def test_scoped_manifest_cannot_smuggle_an_out_of_scope_repository_entry(self) -> None:
+        selected = self.repo / "selected"
+        selected.mkdir()
+        (selected / "file.txt").write_text("selected\n", encoding="utf-8")
+        self.git("add", "selected/file.txt")
+        self.git("commit", "-qm", "scoped fixture")
+        result = self.tool(
+            "snapshot", "--repo", str(self.repo), "--output", str(self.manifest),
+            "--scope", "selected",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        value = json.loads(self.manifest.read_text(encoding="utf-8"))
+        forged = dict(next(entry for entry in value["entries"] if entry["scope"] == "repo"))
+        forged["path"] = "tracked.txt"
+        value["entries"].append(forged)
+        value["entries"].sort(key=lambda item: (item["scope"], os.fsencode(item["path"])))
+        self.write_rehashed_manifest(value)
+        result, payload = self.verify()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("outside scoped paths", payload["error"])
 
 
 if __name__ == "__main__":

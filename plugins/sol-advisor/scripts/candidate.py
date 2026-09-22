@@ -19,6 +19,7 @@ SCHEMA_VERSION = 2
 ARTIFACT_DIRECTORY = ".agent-artifacts"
 LEGACY_INVENTORY = "tracked-and-unignored-untracked"
 ARTIFACT_INVENTORY = "tracked-and-unignored-untracked-except-root-agent-artifacts"
+SCOPED_INVENTORY = "scoped-literal-v1"
 
 
 class CandidateError(Exception):
@@ -106,7 +107,7 @@ def require_manifest_location(path: Path, repo: Path, inventory_policy: str) -> 
     if not is_within(path, repo):
         return
     artifact_root = repo / ARTIFACT_DIRECTORY
-    if inventory_policy == ARTIFACT_INVENTORY and path != artifact_root and is_within(path, artifact_root):
+    if inventory_policy in {ARTIFACT_INVENTORY, SCOPED_INVENTORY} and path != artifact_root and is_within(path, artifact_root):
         return
     raise CandidateError(
         "candidate manifest inside the repository is allowed only under root .agent-artifacts "
@@ -291,12 +292,17 @@ def inspect_path(path: Path, *, allow_missing: bool) -> dict[str, Any]:
 
 
 def repo_inventory(
-    repo: Path, inventory_policy: str = ARTIFACT_INVENTORY
+    repo: Path, inventory_policy: str = ARTIFACT_INVENTORY,
+    scoped_paths: list[str] | None = None,
 ) -> list[tuple[str, dict[str, str] | None]]:
-    if inventory_policy not in {LEGACY_INVENTORY, ARTIFACT_INVENTORY}:
+    if inventory_policy not in {LEGACY_INVENTORY, ARTIFACT_INVENTORY, SCOPED_INVENTORY}:
         raise CandidateError("unsupported repository inventory policy")
-    if inventory_policy == ARTIFACT_INVENTORY:
+    if inventory_policy in {ARTIFACT_INVENTORY, SCOPED_INVENTORY}:
         require_artifact_directory(repo)
+    if inventory_policy == SCOPED_INVENTORY and not scoped_paths:
+        raise CandidateError("scoped repository inventory requires canonical literal scopes")
+    if inventory_policy != SCOPED_INVENTORY and scoped_paths is not None:
+        raise CandidateError("scoped paths require the scoped repository inventory policy")
     tracked_output = run_git(repo, "ls-files", "-z", "--stage")
     assert tracked_output is not None
     paths: dict[str, dict[str, str] | None] = {}
@@ -328,12 +334,23 @@ def repo_inventory(
     assert other_output is not None
     for raw_path in (item for item in other_output.split(b"\0") if item):
         path = os.fsdecode(raw_path)
-        if inventory_policy == ARTIFACT_INVENTORY and artifact_descendant(path):
+        if inventory_policy in {ARTIFACT_INVENTORY, SCOPED_INVENTORY} and artifact_descendant(path):
             continue
         if path in paths:
             raise CandidateError(f"duplicate worktree inventory entry: {path}")
         paths[path] = None
-    return sorted(paths.items(), key=lambda item: os.fsencode(item[0]))
+    inventory = sorted(paths.items(), key=lambda item: os.fsencode(item[0]))
+    if inventory_policy != SCOPED_INVENTORY:
+        return inventory
+    assert scoped_paths is not None
+    selected = [
+        item for item in inventory
+        if any(item[0] == scope or item[0].startswith(scope + "/") for scope in scoped_paths)
+    ]
+    for scope in scoped_paths:
+        if not any(path == scope or path.startswith(scope + "/") for path, _ in selected):
+            raise CandidateError(f"scoped repository path selects no candidate input: {scope}")
+    return selected
 
 
 def current_head(repo: Path) -> str | None:
@@ -348,12 +365,65 @@ def normalize_explicit_inputs(values: list[str]) -> list[str]:
     return sorted(normalized, key=os.fsencode)
 
 
+def normalize_scoped_paths(values: list[str]) -> list[str]:
+    if not values:
+        raise CandidateError("scoped selection requires at least one --scope")
+    normalized: list[str] = []
+    for value in values:
+        if not isinstance(value, str) or value.startswith(":") or not canonical_repo_path(value):
+            raise CandidateError(f"scope is not a canonical literal repository path: {value!r}")
+        normalized.append(value)
+    if len(normalized) != len(set(normalized)):
+        raise CandidateError("scoped repository paths must be unique")
+    normalized.sort(key=os.fsencode)
+    for index, path in enumerate(normalized):
+        for other in normalized[index + 1 :]:
+            if other.startswith(path + "/"):
+                raise CandidateError("scoped repository paths must not overlap")
+    return normalized
+
+
+def _path_selected(path: str, scoped_paths: list[str], explicit_repo_paths: set[str]) -> bool:
+    return path in explicit_repo_paths or any(
+        path == scope or path.startswith(scope + "/") for scope in scoped_paths
+    )
+
+
+def reject_dirty_outside_scopes(
+    repo: Path, scoped_paths: list[str], explicit_inputs: list[str],
+) -> None:
+    explicit_repo_paths: set[str] = set()
+    for value in explicit_inputs:
+        path = Path(value)
+        if is_within(path, repo):
+            explicit_repo_paths.add(os.fspath(path.relative_to(repo)))
+    output = run_git(repo, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+    assert output is not None
+    for raw_record in (record for record in output.split(b"\0") if record):
+        if len(raw_record) >= 4 and raw_record[2:3] == b" ":
+            status = raw_record[:2]
+            raw_path = raw_record[3:]
+        else:
+            status = b""
+            raw_path = raw_record
+        path = os.fsdecode(raw_path)
+        if status == b"??" and artifact_descendant(path):
+            continue
+        if not canonical_repo_path(path) or not _path_selected(path, scoped_paths, explicit_repo_paths):
+            raise CandidateError(f"dirty or untracked path exists outside scoped selection: {path}")
+
+
 def build_candidate(
     repo: Path, explicit_inputs: list[str], *, explicit_allow_missing: bool = False,
     inventory_policy: str = ARTIFACT_INVENTORY,
+    scoped_paths: list[str] | None = None,
 ) -> dict[str, Any]:
+    if inventory_policy == SCOPED_INVENTORY:
+        if scoped_paths is None:
+            raise CandidateError("scoped candidate is missing scoped paths")
+        reject_dirty_outside_scopes(repo, scoped_paths, explicit_inputs)
     entries: list[dict[str, Any]] = []
-    for relative, index in repo_inventory(repo, inventory_policy):
+    for relative, index in repo_inventory(repo, inventory_policy, scoped_paths):
         path = repo / relative
         try:
             resolved_parent = path.parent.resolve(strict=False)
@@ -367,10 +437,16 @@ def build_candidate(
         details = inspect_path(Path(absolute), allow_missing=explicit_allow_missing)
         entries.append({"scope": "input", "path": absolute, **details})
     entries.sort(key=lambda item: (item["scope"], os.fsencode(item["path"])))
-    selection = {
+    head = current_head(repo)
+    selection: dict[str, Any] = {
         "repo_inventory": inventory_policy,
         "explicit_inputs": explicit_inputs,
     }
+    if inventory_policy == SCOPED_INVENTORY:
+        if head is None:
+            raise CandidateError("scoped candidate requires a committed source HEAD")
+        selection["scoped_paths"] = scoped_paths
+        selection["scope_head"] = head
     identity = {
         "schema_version": SCHEMA_VERSION,
         "selection": selection,
@@ -381,7 +457,7 @@ def build_candidate(
         "schema_version": SCHEMA_VERSION,
         "candidate_id": candidate_id,
         "repo": os.fspath(repo),
-        "source": {"head": current_head(repo)},
+        "source": {"head": head},
         "selection": selection,
         "entries": entries,
     }
@@ -427,12 +503,16 @@ def validate_manifest(value: Any) -> dict[str, Any]:
     selection = value.get("selection")
     if not isinstance(selection, dict):
         raise CandidateError("candidate manifest selection is invalid")
-    if set(selection) != {"repo_inventory", "explicit_inputs"}:
-        raise CandidateError("candidate manifest selection fields are invalid")
-    if not isinstance(selection.get("repo_inventory"), str) or selection["repo_inventory"] not in {
-        LEGACY_INVENTORY, ARTIFACT_INVENTORY
+    inventory_policy = selection.get("repo_inventory")
+    if not isinstance(inventory_policy, str) or inventory_policy not in {
+        LEGACY_INVENTORY, ARTIFACT_INVENTORY, SCOPED_INVENTORY
     }:
         raise CandidateError("candidate manifest repository inventory is unsupported")
+    expected_selection_fields = {"repo_inventory", "explicit_inputs"}
+    if inventory_policy == SCOPED_INVENTORY:
+        expected_selection_fields |= {"scoped_paths", "scope_head"}
+    if set(selection) != expected_selection_fields:
+        raise CandidateError("candidate manifest selection fields are invalid")
     explicit = selection.get("explicit_inputs")
     if not isinstance(explicit, list) or any(
         not isinstance(item, str)
@@ -442,6 +522,18 @@ def validate_manifest(value: Any) -> dict[str, Any]:
         raise CandidateError("candidate manifest explicit inputs are invalid")
     if explicit != sorted(set(explicit), key=os.fsencode):
         raise CandidateError("candidate manifest explicit inputs are not canonical")
+    if inventory_policy == SCOPED_INVENTORY:
+        scoped_paths = selection.get("scoped_paths")
+        if not isinstance(scoped_paths, list) or normalize_scoped_paths(scoped_paths) != scoped_paths:
+            raise CandidateError("candidate manifest scoped paths are invalid")
+        scope_head = selection.get("scope_head")
+        if not (
+            isinstance(scope_head, str)
+            and len(scope_head) in {40, 64}
+            and all(character in "0123456789abcdef" for character in scope_head)
+            and scope_head == head
+        ):
+            raise CandidateError("candidate manifest scoped HEAD is invalid")
     entries = value.get("entries")
     if not isinstance(entries, list) or any(not isinstance(item, dict) for item in entries):
         raise CandidateError("candidate manifest entries are invalid")
@@ -518,6 +610,19 @@ def validate_manifest(value: Any) -> dict[str, Any]:
         keys.append((scope, path))
     if keys != sorted(set(keys), key=lambda item: (item[0], os.fsencode(item[1]))):
         raise CandidateError("candidate manifest entries are not canonical")
+    if inventory_policy == SCOPED_INVENTORY:
+        scoped_paths = selection["scoped_paths"]
+        if any(
+            scope == "repo" and not _path_selected(path, scoped_paths, set())
+            for scope, path in keys
+        ):
+            raise CandidateError("candidate manifest contains a repository entry outside scoped paths")
+        for scoped_path in scoped_paths:
+            if not any(
+                scope == "repo" and (path == scoped_path or path.startswith(scoped_path + "/"))
+                for scope, path in keys
+            ):
+                raise CandidateError("candidate manifest scoped path selects no repository entry")
     input_paths = [path for scope, path in keys if scope == "input"]
     if input_paths != explicit:
         raise CandidateError("candidate manifest explicit entries do not match selection")
@@ -532,6 +637,21 @@ def validate_manifest(value: Any) -> dict[str, Any]:
     if value.get("candidate_id") != expected:
         raise CandidateError("candidate manifest identifier does not match its contents")
     return value
+
+
+def current_candidate_from_manifest(
+    validated_manifest: dict[str, Any], *, explicit_allow_missing: bool = True,
+) -> dict[str, Any]:
+    """Rebuild current bytes using exactly the manifest's validated selection."""
+
+    manifest = validate_manifest(validated_manifest)
+    selection = manifest["selection"]
+    return build_candidate(
+        resolve_repo(manifest["repo"]), selection["explicit_inputs"],
+        explicit_allow_missing=explicit_allow_missing,
+        inventory_policy=selection["repo_inventory"],
+        scoped_paths=selection.get("scoped_paths"),
+    )
 
 
 def write_manifest(path: Path, value: dict[str, Any]) -> None:
@@ -630,9 +750,13 @@ def snapshot_command(args: argparse.Namespace) -> int:
     require_artifact_directory(repo)
     output = resolve_manifest_output(args.output)
     reject_artifact_parent_alias(args.output, output, repo)
-    require_manifest_location(output, repo, ARTIFACT_INVENTORY)
+    scoped_paths = normalize_scoped_paths(args.scope) if args.scope else None
+    inventory_policy = SCOPED_INVENTORY if scoped_paths is not None else ARTIFACT_INVENTORY
+    require_manifest_location(output, repo, inventory_policy)
     explicit = normalize_explicit_inputs(args.input)
-    manifest = build_candidate(repo, explicit)
+    manifest = build_candidate(
+        repo, explicit, inventory_policy=inventory_policy, scoped_paths=scoped_paths
+    )
     reject_output_overlap(output, explicit)
     reject_repo_output_overlap(output, repo, manifest)
     write_manifest(output, manifest)
@@ -663,15 +787,12 @@ def verify_command(args: argparse.Namespace) -> int:
         raise CandidateError(f"cannot read candidate manifest {manifest_path}: {exc}") from exc
     repo = resolve_repo(manifest["repo"])
     inventory_policy = manifest["selection"]["repo_inventory"]
-    if inventory_policy == ARTIFACT_INVENTORY:
+    if inventory_policy in {ARTIFACT_INVENTORY, SCOPED_INVENTORY}:
         require_artifact_directory(repo)
         reject_artifact_parent_alias(args.manifest, manifest_path, repo)
     require_manifest_location(manifest_path, repo, inventory_policy)
     reject_output_overlap(manifest_path, manifest["selection"]["explicit_inputs"])
-    current = build_candidate(
-        repo, manifest["selection"]["explicit_inputs"], explicit_allow_missing=True,
-        inventory_policy=inventory_policy,
-    )
+    current = current_candidate_from_manifest(manifest)
     reject_repo_output_overlap(manifest_path, repo, current)
     changes = compare_entries(manifest["entries"], current["entries"])
     expected_matches = (
@@ -707,6 +828,12 @@ def parser() -> argparse.ArgumentParser:
     snapshot.add_argument(
         "--output", required=True,
         help="manifest path under repository-root .agent-artifacts (or outside for compatibility)",
+    )
+    snapshot.add_argument(
+        "--scope",
+        action="append",
+        default=[],
+        help="opt in to scoped-literal-v1 selection for a proven repository path; repeat as needed",
     )
     snapshot.add_argument(
         "--input",

@@ -1,0 +1,367 @@
+{
+  "schema": "SA-FULL-V2-METRICS-v2",
+  "document_id": "SA-FULL-V2-20260920-R1",
+  "measurement_boundary": {
+    "source_candidate": "unreleased 0.8.0 workspace source",
+    "production_install_changed": false,
+    "business_or_authenticated_action_run": false,
+    "tokens": {"status": "measured-native-runtime", "scope": "30 historical paired samples, 6 invalid-fixture attempts, and 6 current dispatch-loading samples"},
+    "price": null,
+    "token_price_reason": "Exact native token_count receipts were recovered and checked against per-call sums. Cached input is separated; no price or billing receipt exists. Historical null-token reports remain retained."
+  },
+  "baseline": {
+    "git_head": "d5b999bbc68766712895cb83aabcdcc5efcac923",
+    "plugin_version": "0.7.3",
+    "candidate_id": "sha256:5d9d0867e008c198df61a01f753dfa6a46ab9e0cc1fac68cfde08bfcea2b101d",
+    "candidate_entry_count": 129,
+    "full_discovery": "36/36 pass"
+  },
+  "current": {
+    "source_version": "0.8.0",
+    "release_status": "unreleased",
+    "revision": "20260922-fresh-closure",
+    "status_source": ".agent-artifacts/20260922-fresh-closure-e38c03/archive/report.md",
+    "verification_scope": "Root solo verification and the stopped partial native trial are retained externally; no new independent source verdict is claimed. Historical measurements below do not sign current bytes.",
+    "behavioral_reviewer_admission": "P2 explicit Root-observed begin/end window; not hard isolation or write-restore detection",
+    "production_install": false,
+    "commit_created": false,
+    "push_or_publish": false
+},
+  "historical_solo_correction_snapshot": {
+    "source_version": "0.8.0",
+    "release_status": "unreleased",
+    "test_discovery_before_final_candidate": "historical pre-correction: 106/106 pass; c7b5 formal E: 135/135 pass; c23e formal E: 143/143 pass; current solo-corrected whole-worktree candidate: 162/162 local pass with no skips or expected failures",
+    "formal_verify_before_final_candidate": "c7b5 formal E passed at 135/135; c23e formal E passed at 143/143; current strict verify.sh passed with dynamic 162/162 discovery after final solo correction; no new formal E",
+    "correction_status": "solo-corrected-locally-awaiting-fresh-review: e7dae270, c7b5, c23e and 74e8 historical fix-first; current offline tests are not independent acceptance",
+    "behavioral_reviewer_admission": "unavailable on this host; no Root-controlled lifecycle and dual-lock capability",
+    "whole_candidate": ".agent-artifacts/20260920-full-v2-01a0be24/archive/metrics/20260922-final-evidence-candidate.json; supersedes retained source snapshots after native non-full regression and current candidate-performance reporting; no formal V/A",
+    "independent_final_review": "no review of current solo-corrected bytes; c7b5/c23e/74e8 technical reviews were fix-first and formal V admission unavailable",
+    "native_development_agent_behavior": "current dispatch-loading A/B, fresh modified-core confirmation, and bounded solo/delegate/audit native regressions; historical full-route evidence remains non-current and is not native acceptance",
+    "production_install": false,
+    "commit_created": false,
+    "push_or_publish": false
+  },
+  "test_progression": [
+    {"stage": "P0", "result": "36/36 pass"},
+    {"stage": "P1 before final solo correction", "result": "71/71 pass"},
+    {"stage": "P1 solo corrected", "result": "72/72 pass"},
+    {"stage": "P2", "result": "84/84 pass"},
+    {"stage": "P3", "result": "99/99 pass"},
+    {"stage": "P4 fixture integration", "result": "100/100 pass"},
+    {"stage": "P5/P6 before completeness audit", "result": "105/105 pass"},
+    {"stage": "completeness audit", "result": "106/106 pass"},
+    {"stage": "c7b5 formal E", "result": "135/135 pass; fresh Sol technical review fix-first; formal V unavailable"},
+    {"stage": "post-c7b5 current worktree pre-freeze", "result": "143/143 local pass; strict verifier pass; no new candidate or formal E"},
+    {"stage": "c23e formal E", "result": "143/143 pass; fresh Sol technical review fix-first; formal V unavailable"},
+    {"stage": "post-c23e pre-solo worktree pre-freeze", "result": "144/144 local pass; strict verifier pass; no new candidate or formal E"},
+    {"stage": "Root solo correction candidate", "result": "162/162 local pass and strict verify.sh pass; shared P/CR/A guard and real-run fixture counterexamples; no fresh independent review or formal E"}
+  ],
+  "candidate_performance": {
+    "environment": "Darwin arm64, Python 3.14.7",
+    "baseline_file": ".agent-artifacts/20260920-full-v2-01a0be24/archive/metrics/p5-baseline.json",
+    "historical_after_file": ".agent-artifacts/20260920-full-v2-01a0be24/archive/metrics/p5-after.json",
+    "after_file": ".agent-artifacts/20260920-full-v2-01a0be24/archive/metrics/p5-current-20260922.json",
+    "current_source_sha256": "de977ba32fa56537ac8ef974f40cd8121acba8704963213ce15487ac28465bcc",
+    "cache_boundary": "one first-observed run plus three warm repeats per mode; no OS cache flush, so true cold-storage latency remains unmeasured",
+    "large_fixture": {
+      "entries_whole": 2520,
+      "entries_scoped": 20,
+      "baseline_warm_median_ns": 133764375,
+      "new_whole_warm_median_ns": 133862667,
+      "new_scoped_warm_median_ns": 45472209,
+      "whole_vs_baseline_ratio": 1.0007348144825556,
+      "scoped_vs_baseline_ratio": 0.33994259682370587
+    },
+    "small_fixture": {
+      "scoped_vs_baseline_ratio": 1.2866131157584104,
+      "decision": "scoped remains opt-in; whole-worktree stays default"
+    }
+  },
+  "native_full_behavior": {
+    "status": "measured-development-source",
+    "evidence": ".agent-artifacts/20260920-full-v2-01a0be24/archive/native/native-behavior-metrics-v3.json",
+    "role_configuration": {
+      "terra": "gpt-5.6-terra/high",
+      "sol": "gpt-5.6-sol/high",
+      "model_substitution_observed": false
+    },
+    "host_boundary": {
+      "sandbox_policy_type": "danger-full-access",
+      "permission_profile_type": "disabled",
+      "reviewer_hard_read_only_enforced": false,
+      "mitigation": "review prompts were behaviorally read-only and candidate bytes were verified before and after review"
+    },
+    "observations": [
+      {
+        "case": "Terra design proposal plus fresh Sol design challenge",
+        "design": "P1 full-route contract v9",
+        "reviewer_thread_id": "01a0be85-ded0-7e70-8500-e9bcba11fdd8",
+        "result": "design-approved-only",
+        "later_implementation_review_contexts_distinct": true
+      },
+      {
+        "case": "single Terra plus fresh Sol",
+        "candidate": "sha256:8601a308ce0ddf4e050c3ad3a1c2ab35b7aaaaae073fc3890f570fef842a01a8",
+        "terra_seconds": 98.421,
+        "sol_seconds": 220.53,
+        "end_to_end_observed_seconds": 427.966,
+        "result": "valid/ship"
+      },
+      {
+        "case": "two peer Terra deliveries plus mechanical combination and fresh Sol",
+        "candidate": "sha256:e8014cf4e1a1a6cb6e994cc4aad34a37a37d5bbb59ba01ab36b5a18797b1b1b9",
+        "parallel_dispatch_to_both_delivery_seconds": 205,
+        "terra_cumulative_seconds": 246.08,
+        "sol_seconds": 364.1,
+        "end_to_end_observed_seconds": 826.867,
+        "lead_or_integrator_terra": false,
+        "semantic_merge": false,
+        "result": "valid/ship"
+      },
+      {
+        "case": "critical rejection, responsible Terra correction, fresh complete re-review",
+        "candidate_1": "sha256:2b31204b976999e0bad7a52b1d5887d3df5eab9529551de8ea6136f1e1b13539",
+        "review_1": "valid/fix-first with remaining scope declared",
+        "candidate_2": "sha256:ff74e11076177437e014b10d22397d949e355b530fcca7612d273ef32703d5b9",
+        "review_2": "fresh valid/ship after completing previous remaining scope",
+        "result": "pass"
+      },
+      {
+        "case": "interruption and same-thread recovery",
+        "interrupted_output_counted_as_delivery": false,
+        "first_resume": "created exactly once",
+        "second_resume": "identical no-write",
+        "result": "pass"
+      },
+      {
+        "case": "native capacity unavailable",
+        "observed_error": "agent thread limit reached",
+        "model_substituted": false,
+        "retry_performed": false,
+        "result": "pass-boundary"
+      }
+    ]
+  },
+  "paired_implementation_benchmark": {
+    "status": "measured-bounded-not-full-route-e2e",
+    "evidence": ".agent-artifacts/20260920-full-v2-01a0be24/archive/metrics/benchmark-comparison-v2.json",
+    "hidden_result_evidence": ".agent-artifacts/20260920-full-v2-01a0be24/archive/metrics/benchmark-hidden-results.json",
+    "runtime_evidence": ".agent-artifacts/20260920-full-v2-01a0be24/archive/metrics/benchmark-runtimes.json",
+    "token_attribution_evidence": ".agent-artifacts/20260920-full-v2-01a0be24/archive/metrics/benchmark-attribution-v2.json",
+    "token_attribution": {
+      "source": "native token_count.total_token_usage, checked against unique last_token_usage sums for all 36 sessions",
+      "paired_baseline": {"uncached_input": 430586, "cached_input": 8499712, "output": 78591, "model_calls": 183},
+      "paired_development": {"uncached_input": 550172, "cached_input": 11285760, "output": 98732, "model_calls": 215},
+      "all_attempts_baseline": {"samples": 21, "uncached_input": 597793, "cached_input": 11958528, "output": 122234, "model_calls": 256},
+      "all_attempts_development": {"samples": 15, "uncached_input": 550172, "cached_input": 11285760, "output": 98732, "model_calls": 215},
+      "attribution": {"baseline_commands": 130, "development_commands": 168, "baseline_orchestration_read_commands": 31, "development_orchestration_read_commands": 52, "baseline_test_commands": 69, "development_test_commands": 61},
+      "limitations": "All-attempt cohorts have unequal counts and are not a winner comparison. Command categories overlap. More procedural loading is an observed overhead mechanism, not proof it caused every elapsed-time difference. These historical samples do not establish current full-route cost."
+    },
+    "method": {
+      "repeats_per_case_per_version": 3,
+      "baseline_version": "0.7.3",
+      "development_version": "0.8.0-unreleased",
+      "same_implementer_role": "gpt-5.6-terra/high",
+      "hidden_answers_visible_to_implementer": false,
+      "cases": [
+        "normal single-stage feature",
+        "cross-consumer validation",
+        "asynchronous authority lifecycle",
+        "evidence-only admission",
+        "operation recovery"
+      ],
+      "multi_lane_note": "The two-peer Terra combined-delivery case is native full-route evidence above, but it has no three-repeat 0.7.3 paired end-to-end baseline."
+    },
+    "quality": {
+      "baseline_hidden_passes": 13,
+      "development_hidden_passes": 14,
+      "samples_per_version": 15,
+      "development_failure": "C3 repeat 2 changed the public synchronous publish API to async and failed hidden compatibility checks",
+      "development_improvement": "C4 evidence admission passed 3/3 versus baseline 1/3",
+      "conclusion": "The bounded sample shows one net additional hidden pass, but also one development regression; it does not establish uniform quality improvement."
+    },
+    "time": {
+      "baseline_per_agent_median_seconds": 192,
+      "development_per_agent_median_seconds": 245,
+      "baseline_per_agent_range_seconds": [160, 365],
+      "development_per_agent_range_seconds": [177, 516],
+      "baseline_cumulative_model_seconds": 3221,
+      "development_cumulative_model_seconds": 4321,
+      "baseline_sum_parallel_batch_wall_seconds": 1351,
+      "development_sum_parallel_batch_wall_seconds": 1837,
+      "conclusion": "No wall-clock or model-work reduction was demonstrated in explicit development-source loading; this is not an installed steady-state benchmark."
+    },
+    "coordination": {
+      "terra_calls_per_version": 15,
+      "sol_calls_per_version": 0,
+      "root_mechanical_hidden_checks_per_version": 15,
+      "progress_messages_counted_as_delivery": false,
+      "end_to_end_root_terra_sol_comparison": null
+    },
+    "fixture_calibration": {
+      "excluded_original_c4_samples": 3,
+      "excluded_original_c5_samples": 3,
+      "reason": "The original hidden schemas were not fully stated in the task input; red outputs are retained and corrected fixtures were rerun rather than reclassified as product failures."
+    }
+  },
+  "dispatch_loading_optimization": {
+    "status": "measured-one-task-native-ab",
+    "evidence": ".agent-artifacts/20260920-full-v2-01a0be24/archive/metrics/dispatch-eval-v1-results.json",
+    "confirmation": ".agent-artifacts/20260920-full-v2-01a0be24/archive/metrics/dispatch-core-confirmation.json",
+    "design": ".agent-artifacts/20260920-full-v2-01a0be24/work/benchmark/dispatch-eval-v1/design.json",
+    "repeats_per_condition": 3,
+    "model_effort": "gpt-5.6-terra/high",
+    "hidden_passes": {"full_read": 3, "worker_core": 3},
+    "median_elapsed_seconds": {"full_read": 54.801, "worker_core": 35.697},
+    "median_uncached_input_tokens": {"full_read": 24991, "worker_core": 6474},
+    "median_cached_input_tokens": {"full_read": 450048, "worker_core": 185088},
+    "median_output_tokens": {"full_read": 3255, "worker_core": 1865},
+    "median_model_calls": {"full_read": 10, "worker_core": 5},
+    "implementation": "For full only, Root loads orchestration references once and directly supplies each Terra's complete work contract plus exact role core and necessary risk references. Workers still inspect actual code/consumers and perform tests/self-review/ordinary corrections.",
+    "limitations": "One bounded cross-consumer fixture; not a full-route end-to-end or installed-product gain. Both conditions prohibit unrelated workflow layering. Broad host isolation is behavioral."
+  },
+  "native_nonfull_regression": {
+    "status": "pass-bounded-native-fixtures",
+    "evidence": ".agent-artifacts/20260920-full-v2-01a0be24/archive/metrics/native-route-regression-v2-results.json",
+    "solo": {"root_thread": "01a0c7f9-1d7c-7051-8f96-1435adc3ec6c", "auxiliary_count": 0, "root_implemented_and_verified": true, "hidden_exit_code": 0},
+    "delegate": {"root_thread": "01a0c7f9-5908-7521-9770-8561fa78014a", "auxiliary_thread": "01a0c7fa-33bf-7e11-b21b-5d223fc340fb", "pin": "gpt-5.6-luna/max", "root_verified_after_handoff": true, "sol_count": 0, "hidden_exit_code": 0},
+    "audit": {"root_thread": "01a0c7fd-5c36-7c01-8025-e152894cc69a", "reviewer_thread": "01a0c7ff-b52b-7f41-a327-c4042c6c0900", "pin": "gpt-5.6-sol/high", "implementer_count": 0, "root_verified_before_review": true, "technical_verdict": "valid/ship", "fixture_candidate": "sha256:f3d20540acc1d81fa3e6eed233a4093664aee4df32136f63a9162b18535dfc96", "candidate_before_after": "match", "hidden_exit_code": 0},
+    "limitations": "One greeting feature per route. Audit is behaviorally read-only on danger-full-access/disabled; no full-v2 formal V/A is implied. The v1 collector misread native Text-block route declarations; raw v1 and corrected v2 are retained."
+  },
+  "failure_samples": [
+    {
+      "stage": "P1 review 7",
+      "class": "evidence-chain",
+      "sample": "failed or incomplete candidate E, self-reported selection policy, missing delivery-E chain, and future final E were accepted",
+      "outcome": "reproduced, grouped, corrected with new red/green cases"
+    },
+    {
+      "stage": "P2",
+      "class": "recovery",
+      "sample": "drifted output identity and source-baseline recheck exposed incorrect recovery behavior",
+      "outcome": "recovery validates complete isolated output and rejects output drift"
+    },
+    {
+      "stage": "P3",
+      "class": "process-cleanup",
+      "sample": "timeout cleanup initially mislabeled a started process and a child ignoring SIGTERM survived",
+      "outcome": "authorized process group receives TERM then KILL; stubborn-child case passes"
+    },
+    {
+      "stage": "P3",
+      "class": "evidence-integrity",
+      "sample": "run recovery initially accepted tampered stdout and P initially accepted E without persisted run provenance",
+      "outcome": "log hashes, run intent, record, and receipt are required"
+    },
+    {
+      "stage": "P6",
+      "class": "verifier-brittleness",
+      "sample": "verify.sh failed on an obsolete exact sentence and fixed 31/5 counts",
+      "outcome": "semantic checks plus dynamic discovery of all tests and required mechanisms"
+    },
+    {
+      "stage": "candidate-bound verification",
+      "class": "installer-environment-order",
+      "sample": "explicit --target-dir failed when HOME and CODEX_HOME were absent",
+      "outcome": "explicit target is parsed first; default-target refusal remains"
+    },
+    {
+      "stage": "candidate-bound verification",
+      "class": "verifier-optional-tool-false-green",
+      "sample": "unavailable rg inside shell conditions emitted command-not-found but allowed exit zero",
+      "outcome": "guards use portable grep and clean raw logs are required"
+    },
+    {
+      "stage": "native correction",
+      "class": "authority-lifecycle",
+      "sample": "candidate checked expiry before prepare but appended after authority expired",
+      "outcome": "fresh Sol rejected; responsible Terra corrected; a different fresh Sol completed remaining scope and shipped candidate 2"
+    },
+    {
+      "stage": "paired benchmark C3 v080 r2",
+      "class": "public-interface-regression",
+      "sample": "visible tests were rewritten around async publish, while the existing synchronous public call returned an unawaited coroutine",
+      "outcome": "retained as a development failure; no result was corrected or recounted"
+    },
+    {
+      "stage": "paired benchmark calibration",
+      "class": "fixture-schema-mismatch",
+      "sample": "original C4 and C5 hidden tests required unstated exact schemas",
+      "outcome": "red attempts retained; explicit-schema v2 fixtures were rerun and only calibrated runs were compared"
+    },
+    {
+      "stage": "native capacity",
+      "class": "tool-capacity",
+      "sample": "a fourth subagent spawn was attempted while all three child slots were occupied",
+      "outcome": "agent thread limit reached; no retry, no model substitution, no product impact"
+    },
+    {
+      "stage": "c7b5 fresh Sol finding 1",
+      "class": "argv-suffix-and-run-record-identity",
+      "sample": "a public argv suffix could extend contract argv; challenge suffix and persisted actual argv/cwd were not bound",
+      "artifact": ".agent-artifacts/20260920-full-v2-01a0be24/work/final-fix/c7b5-argv-truncation-red-green.md",
+      "outcome": "fresh Sol fix-first; later source repair authorizes exact suffixes and persists/replays argv/cwd, but no post-repair formal E exists"
+    },
+    {
+      "stage": "c7b5 fresh Sol finding 2",
+      "class": "truncated-pass-evidence",
+      "sample": "an exit-zero run with truncated stdout or stderr could publish pass E/run-record",
+      "artifact": ".agent-artifacts/20260920-full-v2-01a0be24/work/final-fix/c7b5-argv-truncation-red-green.md",
+      "outcome": "fresh Sol fix-first; later source treats truncated pass evidence as incomplete, without a new formal E"
+    },
+    {
+      "stage": "c7b5 fresh Sol finding 3",
+      "class": "verifier-skip-expected-failure-false-green",
+      "sample": "verify.sh accepted missing scoped-chain guards and unittest OK with skipped or expected-failure mechanisms",
+      "red_artifact": ".agent-artifacts/20260922-verifier-docs-terra-01/work/red/test_verify_test_suite-before-runner.log",
+      "green_artifacts": [
+        ".agent-artifacts/20260922-verifier-docs-terra-01/archive/logs/test_verify_test_suite-green.log",
+        ".agent-artifacts/20260922-verifier-docs-terra-01/archive/logs/full-unittest.log",
+        ".agent-artifacts/20260922-verifier-docs-terra-01/archive/logs/official-verify.log"
+      ],
+      "outcome": "strict runner rejects zero discovery, missing required IDs, skips, expected failures and ordinary failures; current pass is pre-freeze only"
+    },
+    {
+      "stage": "c7b5 fresh Sol finding 4",
+      "class": "tagged-design-review-and-gray-status-documentation",
+      "sample": "tagged DR example omitted design input, used ship as a design verdict, and gray wording implied a current final verdict",
+      "artifact": ".agent-artifacts/20260920-full-v2-01a0be24/archive/native/final-correction-3-sol-review.md",
+      "outcome": "docs now require --design-input and preserve design-approved|fix-first|rethink and pre-freeze status"
+    },
+    {
+      "stage": "c23e fresh Sol finding 1",
+      "class": "final-accept-persisted-E-provenance",
+      "sample": "final_accept accepted a caller-built in-memory final E with logs=[] and published A without task-side run-check provenance",
+      "artifact": ".agent-artifacts/20260920-full-v2-01a0be24/work/final-fix/c23e-final-provenance-red-green.md",
+      "outcome": "fresh Sol fix-first; shared P/CR/A guard now requires persisted E, run-record, intent, receipt and logs before A intent; current source remains pre-freeze"
+    },
+    {
+      "stage": "c23e fresh Sol finding 2",
+      "class": "prepare-challenge-nonempty-suffix-cli-gap",
+      "sample": "the library supported contract-authorized nonempty argv suffixes but prepare-challenge CLI could not pass them",
+      "artifact": ".agent-artifacts/20260920-full-v2-01a0be24/work/final-fix/c23e-final-provenance-red-green.md",
+      "outcome": "fresh Sol fix-first; repeatable --arg forwards exact authorized vectors, with subprocess legal, forbidden and legacy-empty neighbors; current source remains pre-freeze"
+    },
+    {
+      "stage": "74e8 fresh Sol finding and Root solo correction",
+      "class": "shared-run-provenance-and-unreachable-acceptance-assertions",
+      "sample": "P/CR/A shared guard accepted E with empty logs, missing canonical request, nonterminal run record or partial receipt; a final-accept test returned before replay and drift assertions",
+      "outcome": "Root repaired development source solo, replaced synthetic review-packet E with real run-check outputs, and moved acceptance replay/drift checks into the real scoped chain; 162/162 local tests pass, but no fresh independent review has accepted these bytes"
+    },
+    {
+      "stage": "Root solo red-green run transaction",
+      "class": "creator-replay-and-process-group-boundary",
+      "sample": "pre-repair run-check targeted suite had 6 failures and 3 errors among 19 tests; later consumer counterexamples had 4/4 failing subcases; replay without child exit was accepted",
+      "outcome": "canonical request and intent precede child execution, same-ID creator admission prevents double spawn, replay checks terminal facts, and uncertain cleanup remains incomplete; red samples were not counted as green"
+    }
+  ],
+  "evidence_boundary": {
+    "unit_and_integration": "measured",
+    "fixture_calibration": "measured separately and invalid fixtures excluded",
+    "native_agent_behavior": "Historical explicit development-core loading and bounded non-full behavior retained. Latest bounded native trial lives at current.status_source; no hard native V/A claim.",
+    "paired_terra_behavior": "15 baseline plus 15 development samples",
+    "paired_full_route_end_to_end": "not run",
+    "independent_final_acceptance": "Use current.status_source for exact latest candidate and scope; historical receipts retain original meanings",
+    "online_or_business_behavior": "not authorized and not run"
+  }
+}

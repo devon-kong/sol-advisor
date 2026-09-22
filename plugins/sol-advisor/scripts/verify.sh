@@ -18,12 +18,19 @@ skill=$plugin_dir/skills/orchestration/SKILL.md
 contracts=$plugin_dir/skills/orchestration/references/role-contracts.md
 operations=$plugin_dir/skills/orchestration/references/operations.md
 convergence=$plugin_dir/skills/orchestration/references/convergence.md
+full_workflow=$plugin_dir/skills/orchestration/references/full-workflow.md
+protocol_tool=$script_dir/full_protocol.py
+workflow_tool=$script_dir/workflow.py
+run_check_tool=$script_dir/run-check.py
+review_packet_tool=$script_dir/review-packet.py
+strict_test_runner=$script_dir/verify-test-suite.py
 candidate_tests=$plugin_dir/tests
 candidate_test=$candidate_tests/test_candidate.py
 behavioral_test=$candidate_tests/test_behavioral_fixtures.py
 behavioral_cases=$candidate_tests/behavioral-evals/cases.json
 readme=$repo_dir/README.md
 ui=$plugin_dir/skills/orchestration/agents/openai.yaml
+marketplace=$repo_dir/.agents/plugins/marketplace.json
 
 tmp_base=/tmp
 tmp_env=$(printenv TMPDIR 2>/dev/null || true)
@@ -48,6 +55,8 @@ legacy_luna_sha256=fba1b42849d93737e83b094a2ab0b1611f87ac37db7438c8bbdf581f0813f
 legacy_terra_sha256=4425a8c1f21ce8c6af93f96adc253bbc33ea301f1389b3fa8ce350be08584eca
 legacy_luna_v050_sha256=5cfaf77f14757074ca5d3cfecd0b8204c91dc14eff8d6119985c64416ddf4853
 legacy_terra_v050_sha256=dc329fe87f6f6610c13157ec16432f91c79cf5a541ee3e7448f6afb165dd18ce
+legacy_terra_v073_sha256=77ed2f36bb149da5d9032230c3d6f5e5cd56b059b3fa5f59085249bba06e1f3a
+legacy_reviewer_v073_sha256=0333acf0ef562bcfebd06009ac09bd1dd8cbc04c4cf28e08e9e049bd8bf202d2
 
 snapshot_files() {
   target=$1
@@ -161,7 +170,58 @@ V050_TERRA
   [ "$(shasum -a 256 "$target/$terra_file" | awk '{print $1}')" = "$legacy_terra_v050_sha256" ] || fail "v0.5.0 Terra fixture digest drifted"
 }
 
-for required in "$installer" "$runtime_inspector" "$candidate_tool" "$manifest" "$skill" "$contracts" "$operations" "$convergence" "$readme" "$ui" "$candidate_test" "$behavioral_test" "$behavioral_cases"; do
+write_v073_roles() {
+  target=$1
+  mkdir -p "$target"
+  cp "$templates/$luna_file" "$target/$luna_file"
+  cat > "$target/$terra_file" <<'V073_TERRA'
+name = "sol_advisor_terra_implementer"
+description = "Sol Advisor's explicit high-complexity escalation lane for judgment-heavy or high-risk work."
+model = "gpt-5.6-terra"
+model_reasoning_effort = "high"
+
+developer_instructions = """
+You are Sol Advisor's explicit high-complexity escalation worker. Execute the
+supplied five-part implementation specification within the settled architecture when
+the parent identifies judgment-heavy, high-risk, or wider-blast-radius work, whether
+that is known before delegation or revealed by the first Luna result. A corrected
+Luna attempt is reserved for a specification error and is not a prerequisite for
+Terra escalation.
+Preserve every stated interface and constraint, stay within the owned file set, and
+document material judgment calls.
+
+You are not alone in the codebase: preserve concurrent edits and do not revert
+unrelated work. Surface ambiguity, scope conflicts, or verification failures rather
+than redesigning the architecture without direction. Run the requested checks and
+report actual evidence. Do not silently substitute a different role, model, or
+reasoning level; this installed custom-agent profile is the required escalation lane.
+"""
+V073_TERRA
+  cat > "$target/$sol_file" <<'V073_REVIEWER'
+name = "sol_advisor_sol_reviewer"
+description = "Sol Advisor's fresh, read-only final review lane for inspected diffs and evidence."
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+
+developer_instructions = """
+You are Sol Advisor's fresh final reviewer. Remain strictly read-only: do not create,
+modify, delete, format, or implement files, and do not broaden the requested scope.
+Inspect the actual files, accumulated change set, stated interfaces and constraints,
+and verification evidence in a fresh context.
+
+Return exactly one verdict: ship, fix-first, or rethink. Base the verdict on concrete,
+evidence-backed findings. Use fix-first only for bounded required corrections and
+rethink when the architecture or scope must change. Do not silently substitute a
+different role, model, or reasoning level; this installed custom-agent profile is the
+required read-only review lane.
+"""
+V073_REVIEWER
+  [ "$(shasum -a 256 "$target/$terra_file" | awk '{print $1}')" = "$legacy_terra_v073_sha256" ] || fail "v0.7.3 Terra fixture digest drifted"
+  [ "$(shasum -a 256 "$target/$sol_file" | awk '{print $1}')" = "$legacy_reviewer_v073_sha256" ] || fail "v0.7.3 Reviewer fixture digest drifted"
+}
+
+for required in "$installer" "$runtime_inspector" "$candidate_tool" "$protocol_tool" "$workflow_tool" "$run_check_tool" "$review_packet_tool" "$strict_test_runner" "$manifest" "$marketplace" "$skill" "$contracts" "$operations" "$convergence" "$full_workflow" "$readme" "$ui" "$candidate_test" "$behavioral_test" "$behavioral_cases"; do
   test -f "$required" || fail "required file missing: $required"
 done
 pass "required files present"
@@ -175,11 +235,12 @@ if grep -Eq '^default_prompt:' "$ui"; then fail "UI metadata has a root-level de
 pass "UI metadata exposes orchestration and its default route prompt"
 
 jq empty "$manifest"
-[ "$(jq -r '.version' "$manifest")" = 0.7.3 ] || fail "manifest version is not 0.7.3"
+[ "$(jq -r '.version' "$manifest")" = 0.8.0 ] || fail "manifest version is not 0.8.0"
+jq -e '.name == "sol-advisor" and (.plugins | length) == 1 and .plugins[0].name == "sol-advisor" and .plugins[0].source.source == "local" and .plugins[0].source.path == "./plugins/sol-advisor"' "$marketplace" >/dev/null || fail "marketplace metadata does not point to the sole local sol-advisor plugin"
 grep -Fq 'SELECTIVE ROUTE' "$manifest" || fail "manifest omits route declaration"
-grep -Fq 'Spawned auxiliary evidence is fail-closed' "$manifest" || fail "manifest omits auxiliary fail-closed rule"
+jq -e '.interface.longDescription | contains("fail closed") and contains("combined candidate")' "$manifest" >/dev/null || fail "manifest omits full-v2 candidate/evidence fail-closed semantics"
 grep -Fq 'For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery.' "$manifest" || fail "manifest omits startup sequencing"
-pass "manifest JSON and v0.7.3 discovery copy"
+pass "manifest JSON and v0.8.0 discovery copy"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path
@@ -224,7 +285,16 @@ grep -Fq "legacy_luna_sha256=$legacy_luna_sha256" "$installer" || fail "installe
 grep -Fq "legacy_terra_sha256=$legacy_terra_sha256" "$installer" || fail "installer legacy Terra digest mismatch"
 grep -Fq "legacy_luna_v050_sha256=$legacy_luna_v050_sha256" "$installer" || fail "installer v0.5.0 Luna digest mismatch"
 grep -Fq "legacy_terra_v050_sha256=$legacy_terra_v050_sha256" "$installer" || fail "installer v0.5.0 Terra digest mismatch"
+grep -Fq "legacy_terra_v073_sha256=$legacy_terra_v073_sha256" "$installer" || fail "installer v0.7.3 Terra digest mismatch"
+grep -Fq "legacy_reviewer_v073_sha256=$legacy_reviewer_v073_sha256" "$installer" || fail "installer v0.7.3 Reviewer digest mismatch"
 pass "immutable historical migration fingerprints"
+
+no_home_target=$tmp_dir/no-home-explicit
+env -u HOME -u CODEX_HOME PATH="$PATH" sh "$installer" --target-dir "$no_home_target"
+for role in "$luna_file" "$terra_file" "$sol_file"; do
+  cmp -s "$templates/$role" "$no_home_target/$role" || fail "explicit target without HOME mismatch: $role"
+done
+pass "explicit target works without HOME or CODEX_HOME"
 
 clean_target=$tmp_dir/clean
 sh "$installer" --target-dir "$clean_target"
@@ -344,6 +414,32 @@ for role in "$luna_file" "$terra_file" "$sol_file"; do
 done
 sh "$installer" --target-dir "$v050_migration_target" --check
 pass "exact v0.5.0 Luna/Terra migration"
+
+v073_migration_target=$tmp_dir/v073-migration
+write_v073_roles "$v073_migration_target"
+before=$(snapshot_files "$v073_migration_target")
+if sh "$installer" --target-dir "$v073_migration_target" --check >/dev/null 2>&1; then
+  fail "check-only accepted exact v0.7.3 templates as current"
+fi
+after=$(snapshot_files "$v073_migration_target")
+[ "$before" = "$after" ] || fail "v0.7.3 check-only mutated the migration target"
+sh "$installer" --target-dir "$v073_migration_target"
+for role in "$luna_file" "$terra_file" "$sol_file"; do
+  cmp -s "$templates/$role" "$v073_migration_target/$role" || fail "v0.7.3 migration mismatch: $role"
+done
+sh "$installer" --target-dir "$v073_migration_target" --check
+pass "exact v0.7.3 Terra/Reviewer migration with check-only no-write"
+
+modified_v073_reviewer=$tmp_dir/modified-v073-reviewer
+write_v073_roles "$modified_v073_reviewer"
+printf 'X' >> "$modified_v073_reviewer/$sol_file"
+before=$(snapshot_files "$modified_v073_reviewer")
+if sh "$installer" --target-dir "$modified_v073_reviewer" >/dev/null 2>&1; then
+  fail "installer replaced a user-modified v0.7.3 Reviewer"
+fi
+after=$(snapshot_files "$modified_v073_reviewer")
+[ "$before" = "$after" ] || fail "modified v0.7.3 Reviewer refusal partially mutated target"
+pass "modified v0.7.3 Reviewer refusal with zero partial mutation"
 
 modified_v050_luna=$tmp_dir/modified-v050-luna
 write_v050_roles "$modified_v050_luna"
@@ -484,7 +580,7 @@ grep -Fq 'REVIEW RESULT' "$contracts" || fail "Reviewer contract lacks a distinc
 grep -Fq 'REVIEWED_CANDIDATE:' "$contracts" || fail "Reviewer contract lacks reviewed-candidate return"
 grep -Fq -- '--expected-candidate-id' "$operations" || fail "operations omit reviewed-candidate verification"
 grep -Fq 'must not derive the final expected ID' "$operations" || fail "operations permit regenerated final candidate IDs"
-if rg -ni 'primary.{0,80}(model|effort)|Sol / High.{0,80}primary|primary.{0,80}Sol / High' \
+if grep -Eni 'primary.{0,80}(model|effort)|Sol / High.{0,80}primary|primary.{0,80}Sol / High' \
   "$readme" "$manifest" "$skill" "$contracts" "$operations"; then
   fail "primary model/effort coupling remains in user/runtime policy"
 fi
@@ -501,7 +597,8 @@ grep -Fqi 'not a prerequisite' "$contracts" || fail "contracts make corrected Lu
 grep -Fq 'do not request a fresh review' "$skill" || fail "skill makes delegate review mandatory"
 grep -Fq '`solo` and `delegate` do not receive a fresh reviewer' "$skill" || fail "skill makes solo/delegate review mandatory"
 grep -Fq 'audit: the root implements the required correction, re-verifies, and obtains a new' "$skill" || fail "skill does not assign audit corrections to root"
-grep -Fq 'full: the selected implementer handles the required correction, the root' "$skill" || fail "skill does not assign full corrections to selected implementer"
+grep -Fq 'full: the relevant peer Terra stage handles the required correction' "$skill" || fail "skill does not return full corrections to the owning peer Terra stage"
+grep -Fq 'new delivery/candidate identity' "$skill" || fail "skill does not invalidate full candidate identity after correction"
 if grep -Fq 'fix-first: delegate the required correction' "$skill"; then fail "skill retains unconditional fix-first delegation"; fi
 grep -Fq 'Every mode, including `solo`, handles a discovered defect' "$skill" || fail "skill does not make defect handling uniform"
 grep -Fq 'or reproduce the failure' "$skill" || fail "skill omits failure preservation or reproduction"
@@ -588,41 +685,56 @@ print("two companion install examples are fail-closed and guarded")
 PY
 pass "README is concise, user-first, route-tabled, and keeps maintainer machinery out"
 
-if rg -n 'sol_advisor_terra_max|sol-advisor-terra-max|sol_advisor_terra_tester|sol-advisor-terra-tester' \
+if grep -ERn 'sol_advisor_terra_max|sol-advisor-terra-max|sol_advisor_terra_tester|sol-advisor-terra-tester' \
   "$templates" "$skill" "$contracts" "$operations" "$convergence"; then
   fail "forbidden second Terra role remains"
 fi
 pass "current role inventory has no second Terra interface"
 
 test -d "$candidate_tests" || fail "candidate behavior tests are missing"
-python3 - "$candidate_tool" "$candidate_test" "$behavioral_test" <<'PY'
-from pathlib import Path
-import sys
-
-for value in sys.argv[1:]:
-    path = Path(value)
-    compile(path.read_bytes(), str(path), "exec")
-PY
-candidate_output=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$candidate_tests" -p 'test_candidate.py' 2>&1) || {
-  printf '%s\n' "$candidate_output" >&2
-  fail "candidate snapshot and verification behavior failed"
+all_test_output=$(PYTHONDONTWRITEBYTECODE=1 python3 "$strict_test_runner" --tests-dir "$candidate_tests" \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_corrected_p2_review_rejects_reused_predecessor_context_through_record_review \
+  --required-id test_full_protocol.CompleteRelationshipTests.test_corrected_p2_reviewer_freshness_covers_transitive_ancestry \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_public_acceptance_rejects_another_stages_final_check \
+  --required-id test_flow_alignment.FlowAlignmentProtocolTests.test_p2_final_check_must_be_reachable_for_every_stage \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_probe_cannot_read_ignored_or_git_files_inside_declared_directory \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_third_stage_reuses_second_stage_cumulative_acceptance \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_intermediate_acceptance_recovers_only_missing_receipt \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_no_required_pre_review_checks_allows_empty_packet \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_two_stages_real_checks_review_and_final_accept_cli \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_new_sandboxed_probe_and_behavioral_review_keep_old_evidence \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_accepted_selection_cannot_be_rebound \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_old_run_log_tamper_is_rejected_at_review \
+  --required-id test_flow_alignment_integration.WindowTests.test_old_evidence_drift_rejects \
+  --required-id test_candidate.CandidateToolTests.test_scoped_selection_is_explicit_versioned_and_binds_head_and_bytes \
+  --required-id test_full_protocol.PublicRelationshipClosureTests.test_acceptance_recomputes_final_evidence_and_root_authority \
+  --required-id test_workflow.WorkflowTests.test_assemble_recovers_artifacts_before_state_and_state_before_receipt \
+  --required-id test_run_check.RunCheckTests.test_timeout_kills_a_child_that_ignores_term \
+  --required-id test_review_packet.ReviewPacketTests.test_record_review_requires_observed_sol_and_applies_ship_transition \
+  --required-id test_behavioral_fixtures.BehavioralFixtureTests.test_full_v2_action_trace_grader_distinguishes_valid_and_invalid_mechanisms \
+  --required-id test_scoped_chain.ScopedChainTests.test_scoped_candidate_run_persists_real_evidence_before_packet \
+  --required-id test_scoped_chain.ScopedChainTests.test_scoped_chain_records_packet_challenge_and_tagged_hard_review_from_real_runs \
+  --required-id test_scoped_chain.ScopedChainTests.test_scoped_readme_byte_drift_rejects_review_before_its_intent \
+  --required-id test_scoped_chain.ScopedChainTests.test_scoped_chain_accepts_after_runner_persists_distinct_final_candidate_evidence \
+  --required-id test_scoped_chain.ScopedChainTests.test_scoped_readme_byte_drift_rejects_final_acceptance_before_its_intent \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_accepts_discovered_required_test_that_actually_passes \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_rejects_required_test_missing_from_dynamic_discovery \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_rejects_skipped_required_test_instead_of_accepting_ok_skipped \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_rejects_expected_failure_required_test \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_rejects_skip_even_when_another_required_test_passes 2>&1) || {
+  printf '%s\n' "$all_test_output" >&2
+  fail "full Python suite did not execute every required mechanism successfully"
 }
-printf '%s\n' "$candidate_output"
-printf '%s\n' "$candidate_output" | grep -Eq 'Ran 31 tests' || fail "candidate suite no longer has the required 31 tests"
-printf '%s\n' "$candidate_output" | grep -Eq '^OK$' || fail "candidate suite did not report OK"
-pass "31 candidate snapshot and verification tests"
-behavioral_output=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$candidate_tests" -p 'test_behavioral_fixtures.py' 2>&1) || {
-  printf '%s\n' "$behavioral_output" >&2
-  fail "behavioral fixture calibration failed"
-}
-printf '%s\n' "$behavioral_output"
-printf '%s\n' "$behavioral_output" | grep -Eq 'Ran 5 tests' || fail "behavioral calibration no longer has the required 5 tests"
-printf '%s\n' "$behavioral_output" | grep -Eq '^OK$' || fail "behavioral calibration did not report OK"
-pass "5 behavioral fixture calibration tests"
+printf '%s\n' "$all_test_output"
+printf '%s\n' "$all_test_output" | python3 -m json.tool >/dev/null || fail "strict test runner did not emit JSON evidence"
+python3 -c 'import json,sys; result=json.load(sys.stdin); raise SystemExit(0 if result.get("status") == "pass" and result.get("discovered") and not result.get("skipped") and not result.get("expected_failures") else 1)' <<EOF || fail "strict test runner did not prove a nonempty, fully executed suite"
+$all_test_output
+EOF
+pass "dynamic full Python discovery executed every required mechanism with no skips or expected failures"
 
 sh -n "$installer"
 sh -n "$runtime_inspector"
 sh -n "$script_dir/verify.sh"
 pass "shell syntax"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor v0.7.3 convergence checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor v0.8.0 full-v2 checks completed in $tmp_dir"

@@ -6,6 +6,19 @@ selection, root responsibilities, escalation, and correction rules belong to
 [SKILL.md](../SKILL.md). Use [convergence.md](convergence.md) for conditional acceptance,
 impact, closure, and resume records. Use [operations.md](operations.md) for selected-role
 preflight, runtime evidence, candidate binding, isolation, and maintainer commands.
+For a declared `full` route, use [full-workflow.md](full-workflow.md) as the sole complex
+protocol reference; keep role cores and task prompts focused on ownership.
+
+For `full` dispatch, Root reads the orchestration procedures and puts the complete
+five-part work contract directly in the worker prompt. Include the exact role-core path
+and identity for a development-source trial, plus specific risk-method excerpts only
+when needed. Terra reads its core, contract, actual code and related consumers; it does
+not repeat Root's route declaration, preflight, candidate/receipt publication, or load
+all Root references by default. This limits procedural loading, not product investigation.
+Ordinary implementation/test/self-review failures remain in the same Terra loop; only
+interface, architecture, authority conflicts or real runtime limits require handoff.
+Return a compact evidence index after stopping writes; deterministic tools collect the
+records. This full-only dispatch rule does not alter solo/delegate/audit responsibilities.
 
 Before any spawn, follow the declared route and preflight only the active role. After
 each spawn, accept its result only after verifying that exact returned thread. The TOMLs
@@ -42,7 +55,8 @@ VERIFICATION
   Success: <concrete expected result>
 - Inspect: <exact file, diff, or generated artifact>
   Success: <concrete expected evidence>
-- Root check needed: <material risk the root should verify independently, or none>
+- Independent check needed: <material risk for Sol in full, or Root in the other routes;
+  name the relevant check or state none. In full, Root investigates only concrete exceptions.>
 
 RETURN
 Return exact commands and actual evidence. A completion claim without evidence is invalid.
@@ -107,14 +121,19 @@ Prompt:
 ROLE
 Act as Sol Advisor's explicit high-complexity escalation worker. Resolve the supplied
 specification within the settled architecture, preserve every stated interface and
-constraint, and surface ambiguity instead of redesigning the architecture.
+constraint, and surface ambiguity instead of redesigning the architecture. Deliver as a
+peer implementer only: do not act as lead, integrator, reviewer, or acceptance authority.
+Root owns planning/state/acceptance; full-only challenge and fresh Sol review follow
+full-workflow.md after your released delivery is candidate-bound.
 
 <paste and complete the Shared implementation contract>
 ~~~
 
 ## Reviewer - requested-read-only review
 
-After root verification when the declared route includes review, spawn exactly:
+For `audit`, spawn after Root verification. For `full`, spawn after structured peer Terra
+delivery and candidate identity binding; Root does not add a default technical rerun. In
+either route, spawn exactly:
 
 ~~~text
 agent_type: sol_advisor_sol_reviewer
@@ -130,6 +149,19 @@ Prompt:
 ROLE
 Act as the fresh final reviewer. Remain strictly read-only: do not edit files, implement
 fixes, or broaden scope.
+
+For `full`, start with the stated high-value contract counterexamples, then complete the
+scope review. Treat design approval, stage progress, and final V/A as separate. A valid
+response uses the verdict triad; unavailable/invalid is separate status. P3 owns the
+same-observed-context challenge handshake and CR/V publication; do not invent or write it.
+A correction requires a new fresh review.
+
+For a staged full task, the packet identifies the stage and its review scope. Check
+the actual cumulative candidate, including accepted upstream behavior affected by this
+stage. Complete remaining required checks before ship; their new evidence belongs to
+this verdict and does not rewrite the original packet. On early rejection, name both
+the grouped blockers and the required scope still unreviewed. Request any new probe
+through Root's bounded registration/runner, never by modifying the reviewed product.
 
 STATED GOAL
 <The user's requested outcome.>
@@ -148,7 +180,7 @@ INTERFACES AND CONSTRAINTS
 - <Compatibility, repository rules, safety boundaries, and excluded scope.>
 
 VERIFICATION EVIDENCE
-- <command> -> <actual root output evidence>
+- <command> -> <actual executor and retained output evidence; full does not require Root reruns>
 - <artifact or diff inspection> -> <actual evidence>
 
 REVIEW
@@ -175,11 +207,21 @@ REQUIRED NEXT ACTION: <outcome needed; separate an optional remedy suggestion>
 
 REVIEW RESULT
 REVIEWED_CANDIDATE: <exact candidate ID supplied in CANDIDATE>
-VERDICT: ship | fix-first | rethink
+REVIEW_STATUS: valid | unavailable | invalid
+valid => VERDICT: ship | fix-first | rethink
+unavailable | invalid => VERDICT: null
 REASON: <decisive evidence-based reason>
 FINDINGS: <structured findings above, or none>
 RESIDUAL RISK: <most important remaining risk, or none>
 ~~~
 
-If any fix is made after review, discard the verdict and run a new fresh review. Use
+If any fix is made after a valid review, discard its verdict and run a new fresh review. Use
 observed isolation, not requested isolation; operations.md defines the stop conditions.
+
+For a new full contract that explicitly selects `SA-REVIEW-ATTESTATION-1`, the runtime
+attestation is a canonical relationship input, not an informal review note. Hard read-only
+is the default. A behavioral fallback requires the contract's exact prompt digest, actual
+sandbox/permission observations, stable reviewer-window facts, and a bound current candidate.
+DR additionally receives a canonical non-secret design input; its digest and reviewer
+attestation must be persisted by the Root-side tool. Historical reviews remain historical and
+cannot be converted into tagged evidence for different bytes.

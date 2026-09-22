@@ -49,6 +49,12 @@ because this layout exists. Assign each auxiliary its owned subdirectory under t
 task path. Avoid a new private driver, duplicate full checkout, or duplicate install for
 each test when an existing task tool or stable snapshot suffices.
 
+For an explicitly declared `full` route, retain immutable task contract and
+acceptance-relevant immutable artifacts at final task-owned paths before candidate binding.
+Mutable state, intents/receipts, design records, progress notes, and final reports are not
+candidate identity by default. Do not relabel design approval or progress as final evidence;
+use the P/CR/V/A relationship rules in [full-workflow.md](full-workflow.md).
+
 ## Place materials by purpose
 
 | Material | Location and lifetime |
@@ -96,6 +102,13 @@ live under root `.agent-artifacts/`. A policy change requires a new candidate an
 The tool rejects manifests elsewhere inside the repository, self-binding outputs, and
 outputs overlapping selected source or explicit inputs, including hardlink aliases.
 
+The optional `scoped-literal-v1` policy is a distinct schema-2 selection identity, not a
+reinterpretation of an old manifest. It records canonical non-overlapping literal repository
+paths and the source HEAD, rejects dirty/untracked paths outside those scopes unless explicitly
+bound, and still hashes selected bytes plus explicit ignored/external inputs. Default and legacy
+manifests retain their prior field set and meaning. Fall back to whole-worktree selection when
+the dependency boundary is not proven.
+
 Keep only inputs relevant to the acceptance claim. Do not recursively bind every prior
 task archive, every installed dependency tree, or all historical logs just because they
 exist. Preserve required inputs and failures with their scope; earlier unaffected evidence
@@ -114,6 +127,11 @@ closed-task `work/`; this is not an automatic timer, scheduled cleanup, or permi
 delete. While a task is open or blocked, keep its necessary state and unresolved failures.
 Retained high-risk/reviewed evidence has no default expiry; a routine task may need only
 its project changes and a concise result, with no permanent external archive.
+
+For corrected full-route tasks, keep the bootstrap record outside the task root under the
+stable ancestor and keep review-window attestations/design inputs as immutable relationship
+artifacts. Do not move, rewrite, or use a previous record/attestation as a signature for a
+new candidate.
 
 Within authorized cleanup, remove only positively identified task-owned disposable files
 after confirming no active process, resume record, accepted manifest, or retained report

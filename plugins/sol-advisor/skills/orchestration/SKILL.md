@@ -52,7 +52,7 @@ escalation. Details and the task-scoped preflight matrix are in operations.md.
 Solo checks no auxiliary. Immediately before spawning Luna or Terra, non-mutatingly
 preflight only that selected implementer. Immediately before spawning the Reviewer at
 the review stage, preflight only the Reviewer. In `full`, do not preflight the Reviewer
-at route start: root verification may prevent that stage from being reached.
+at route start: delivery or mechanical admission may prevent that stage from being reached.
 
 After each actual spawn, accept its result only after verifying the exact returned
 native thread's role, model, and effort. Public metadata is authoritative; if it omits
@@ -69,8 +69,20 @@ model, effort, or reviewer.
   implementer executes the complete spec; root verifies; do not request a fresh review.
 - `audit`: root implements and verifies; a fresh read-only Sol / High reviewer reviews
   the accumulated diff; spawn no implementer.
-- `full`: only for an explicit broad or high-risk exception. Select one implementer,
-  root verifies, then a fresh read-only Sol / High reviewer reviews.
+- `full`: only for an explicit broad or high-risk exception. Root owns plan, identity,
+  decision, release, and final acceptance; it schedules one or more peer Terra stage
+  deliveries under the immutable task contract, then fresh Sol performs technical
+  validation. Root investigates exceptions and binds identity, but does not perform a
+  default technical rerun or duplicate diff review.
+
+For `full` only, read [full-workflow.md](references/full-workflow.md) before writing the
+task contract or worker prompt. It defines the immutable/mutable boundary, Terra peer
+delivery, Sol challenge lifecycle, design/stage/final separation, recovery, and acceptance
+provenance; it does not alter the three non-full routes.
+Root loads these orchestration references once. For full workers, send the complete owned
+work contract, exact development role-core path/identity when applicable, and only the
+specific risk references needed by that work. Do not make each Terra repeat Root's
+SKILL/operations/artifact initialization; workers still inspect actual code and consumers.
 
 Auxiliary work must substitute for root work, not duplicate it. A Luna result may
 justify escalation to Terra / High only when it reveals newly observed complexity,
@@ -100,9 +112,12 @@ Keep these responsibilities with the root:
 - Resolve requirements, material ambiguity, and conflicts in the acceptance basis.
 - Choose architecture, interfaces, decomposition, and selective route.
 - Write the complete worker specification for any selected implementer.
-- Inspect the actual diff and rerun verification.
-- Independently derive at least one check for each material risk instead of only replaying
-  implementer evidence.
+- For `solo`, `delegate`, and `audit`, inspect the actual diff and rerun the
+  route-appropriate verification.
+- For `solo`, `delegate`, and `audit`, independently derive at least one check for each
+  material risk instead of only replaying implementer evidence. In `full`, Root instead
+  verifies identity/provenance and investigates a concrete exception; Sol owns technical
+  validation.
 - Separate inspected, confirmed-affected, and authorized-to-change surfaces.
 - Decide whether newly observed risk warrants escalation.
 - Judge the reviewer verdict when the route includes review and accept the deliverable.
@@ -112,9 +127,10 @@ INTERFACES, CONSTRAINTS, VERIFICATION, and the structured implementation return 
 [the role contracts](references/role-contracts.md). State the exact owned files,
 preserve concurrent edits, and never silently widen scope.
 
-Treat worker reports as claims. Confirm the complete diff, changed-file scope, requested
-checks, and artifact/runtime evidence as the root. Do not duplicate the selected
-implementer's work.
+Treat worker reports as claims. In `solo`, `delegate`, and `audit`, confirm the complete
+diff, changed-file scope, requested checks, and artifact/runtime evidence as Root. In
+`full`, confirm structured delivery identity/provenance and only investigate a concrete
+exception; do not duplicate peer Terra or Sol technical work.
 
 ## Keep verification evidence stable
 
@@ -171,10 +187,12 @@ on an authorized resume, preserve prior failures and the cumulative closure reco
 
 ## Review only when the route includes it
 
-For `audit` and `full`, after root verification, spawn a new native Sol / High
-reviewer. The reviewer must remain behaviorally read-only, inspect the actual
-accumulated diff, and return exactly ship, fix-first, or rethink. A reviewer never
-implements its own fixes. For every high-risk or repeated-omission principal material
+For `audit`, after Root verification, spawn a new native Sol / High reviewer. For `full`,
+after structured Terra deliveries and identity binding, spawn a new native Sol / High
+technical reviewer. The reviewer must remain behaviorally read-only, inspect the actual
+accumulated diff, and return `REVIEW_STATUS: valid|unavailable|invalid`; only valid carries
+exactly one of ship, fix-first, or rethink. A reviewer never implements its own fixes. For
+every high-risk or repeated-omission principal material
 risk, it must offer a fresh behavior challenge or actual-code equivalence reasoning; a
 hash or log alone is not approval. `solo` and `delegate` do not receive a fresh reviewer.
 
@@ -182,8 +200,8 @@ hash or log alone is not approval. `solo` and `delegate` do not receive a fresh 
 - fix-first applies only to `audit` and `full`:
   - audit: the root implements the required correction, re-verifies, and obtains a new
     fresh reviewer.
-  - full: the selected implementer handles the required correction, the root
-    re-verifies, and a new fresh reviewer reviews.
+  - full: the relevant peer Terra stage handles the required correction; Root binds the
+    new delivery/candidate identity, and a new fresh Sol technical review follows.
   - solo and delegate: no fresh reviewer is added unless a newly observed,
     risk-evidenced route escalation is declared; never silently add one.
 - rethink: revise the architecture and do not report completion.
@@ -192,8 +210,11 @@ Any implementation correction invalidates the prior verdict. Apply the observed 
 and permission profile rules in the operations reference; never claim enforced
 read-only isolation when it was not observed.
 
-For `audit` and `full`, acceptance requires the frozen acceptance basis, resolved blocking
-findings, root verification against the same candidate, and a valid fresh `ship`. For
-`solo` and `delegate`, apply the same acceptance basis and root evidence without adding a
-reviewer. A time or retry limit may produce an honest partial or blocked result; it never
-turns unmet acceptance into completion.
+For `audit`, acceptance requires the frozen acceptance basis, resolved blocking findings,
+Root verification against the same candidate, and a valid fresh `ship`. For `full`, it
+requires the frozen basis, structured peer delivery/candidate identity, resolved blocking
+findings, and fresh Sol technical `REVIEW_STATUS: valid` with `ship`; Root then makes the
+final acceptance decision without a default technical rerun. For `solo` and `delegate`,
+apply the same acceptance basis and Root evidence without adding a reviewer. A time or
+retry limit may produce an honest partial or blocked result; it never turns unmet acceptance
+into completion.

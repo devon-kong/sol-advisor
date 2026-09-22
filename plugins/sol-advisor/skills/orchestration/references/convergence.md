@@ -21,6 +21,14 @@ Reasonable implementation choices may be settled within granted authority. A pro
 change, lower acceptance standard, or wider permission requires new authority rather than
 an edited acceptance record.
 
+## Full-route protocol separation
+
+For an explicitly declared `full` route, label the design decision, stage progress, and
+final acceptance separately. DR is never candidate, packet, V, or A authority. State
+records progress/selection only and cannot replace immutable provenance. Final acceptance
+requires the same-candidate chain and a fresh valid `ship`, not a green delivery or design
+approval. Use [full-workflow.md](full-workflow.md) for artifact and recovery rules.
+
 ## Impact surface
 
 For a local defect, prose is enough. When a mechanism or rule has multiple consumers,
@@ -67,7 +75,8 @@ OBSERVED: <concrete failure and consequence>
 CAUSE: <supported explanation and confidence>
 SURFACE: <affected and explicitly excluded consumers>
 CHANGE: <what was corrected and why>
-EVIDENCE: <commands, artifacts, and independently derived root check>
+EVIDENCE: <commands, artifacts, and independently derived check; Sol owns technical
+validation in full, Root owns route-appropriate verification otherwise>
 UNVERIFIED: <remaining uncertainty or none>
 ~~~
 

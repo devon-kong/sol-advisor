@@ -16,6 +16,7 @@ import unittest
 
 
 FIXTURES = Path(__file__).parent / "behavioral-evals"
+REPOSITORY = Path(__file__).resolve().parents[3]
 
 
 def load(case: str, filename: str):
@@ -27,6 +28,41 @@ def load(case: str, filename: str):
 
 
 class BehavioralFixtureTests(unittest.TestCase):
+    def test_full_v2_usage_covers_required_examples_without_inventing_recovery_cli(self):
+        usage = (REPOSITORY / "docs" / "full-v2" / "USAGE.md").read_text(encoding="utf-8")
+        required_examples = {
+            "### One Terra, one stage": "workflow.py receive",
+            "### Two independent peer Terra deliveries": "workflow.py assemble",
+            "### High-risk design challenge before implementation": "record-design-review",
+            "### Interrupted mutation and recovery": "workflow.py status",
+        }
+        for heading, command in required_examples.items():
+            with self.subTest(heading=heading):
+                self.assertIn(heading, usage)
+                section = usage.split(heading, 1)[1].split("\n### ", 1)[0]
+                self.assertIn(command, section)
+        documented_commands = [
+            line.strip() for line in usage.splitlines() if line.startswith("python3 ")
+        ]
+        self.assertFalse(
+            any("workflow.py recover" in command for command in documented_commands),
+            documented_commands,
+        )
+
+    def test_full_v2_action_trace_grader_distinguishes_valid_and_invalid_mechanisms(self):
+        grader = load("full-v2", "grader.py")
+        document = json.loads((FIXTURES / "full-v2" / "cases.json").read_text(encoding="utf-8"))
+        self.assertIn("never", document["notice"].lower())
+        self.assertGreaterEqual(len(document["cases"]), 7)
+        for case in document["cases"]:
+            with self.subTest(case=case["id"]):
+                result = grader.grade(case)
+                self.assertEqual(result["passed"], case["expected"], result)
+                if case["expected"]:
+                    self.assertEqual(result["violations"], [])
+                else:
+                    self.assertTrue(result["violations"])
+
     def test_routine_starts_with_compatible_default(self):
         module = load("routine", "greeting.py")
         self.assertEqual(module.greet("Ada"), "Hello, Ada")
