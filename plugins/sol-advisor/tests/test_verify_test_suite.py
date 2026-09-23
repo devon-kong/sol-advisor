@@ -210,6 +210,26 @@ class VerifyTestSuiteTests(unittest.TestCase):
             self.assertNotEqual(refused.returncode, 0)
             self.assertEqual({p.name: p.read_bytes() for p in target.iterdir()}, before)
 
+    def test_previous_luna_migrates_but_custom_edits_are_preserved(self) -> None:
+        plugin = RUNNER.parent.parent
+        previous = (plugin / "tests/fixtures/luna-v080.toml").read_bytes()
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "agents"
+            shutil.copytree(plugin / "agents", target)
+            luna = target / "sol-advisor-luna-implementer.toml"
+            luna.write_bytes(previous)
+            command = ["sh", str(plugin / "scripts/install-agents.sh"), "--target-dir", str(target)]
+            self.assertNotEqual(subprocess.run(command + ["--check"], capture_output=True).returncode, 0)
+            migrated = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(migrated.returncode, 0, migrated.stderr)
+            self.assertEqual(luna.read_bytes(), (plugin / "agents" / luna.name).read_bytes())
+
+            luna.write_bytes(previous + b"\n# user customization\n")
+            before = {p.name: p.read_bytes() for p in target.iterdir()}
+            refused = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(refused.returncode, 0)
+            self.assertEqual({p.name: p.read_bytes() for p in target.iterdir()}, before)
+
     def test_fixture_parent_preserves_existing_content_and_refuses_aliases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             parent = Path(tmp) / "artifacts"

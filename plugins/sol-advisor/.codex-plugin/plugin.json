@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Codex-native selective routing with peer full delivery, immutable evidence, and candidate-bound review.",
   "author": {"name": "Daniel McAteer", "url": "https://github.com/DannyMac180"},
   "homepage": "https://github.com/DannyMac180/sol-advisor#readme",

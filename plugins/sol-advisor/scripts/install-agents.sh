@@ -229,6 +229,8 @@ legacy_terra_sha256=4425a8c1f21ce8c6af93f96adc253bbc33ea301f1389b3fa8ce350be0858
 # Immutable v0.5.0 role digests, calculated from the shipped base profiles.
 legacy_luna_v050_sha256=5cfaf77f14757074ca5d3cfecd0b8204c91dc14eff8d6119985c64416ddf4853
 legacy_terra_v050_sha256=dc329fe87f6f6610c13157ec16432f91c79cf5a541ee3e7448f6afb165dd18ce
+# Exact 0.8.0 Luna profile installed by the previous plugin.
+legacy_luna_v080_sha256=12fa9180a292876e6731bc325779123bcd931c3caa902fbf90d676a31833be84
 # Exact 0.7.3 profiles replaced by the full-v2 role cores.
 legacy_terra_v073_sha256=77ed2f36bb149da5d9032230c3d6f5e5cd56b059b3fa5f59085249bba06e1f3a
 legacy_reviewer_v073_sha256=0333acf0ef562bcfebd06009ac09bd1dd8cbc04c4cf28e08e9e049bd8bf202d2
@@ -248,7 +250,7 @@ if [ "$check_only" -eq 1 ]; then
   if role_selected luna; then
     [ -f "$luna_template" ] && [ ! -L "$luna_template" ] ||
       report_preflight_error "shipped Luna template is missing or not a regular file: $luna_template"
-    luna_state=$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")
+    luna_state=$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256" "$legacy_luna_v080_sha256")
     [ "$luna_state" = current ] ||
       report_preflight_error "Luna template is $luna_state, not the current exact file: $luna_destination"
   fi
@@ -273,7 +275,7 @@ else
     [ -f "$template" ] && [ ! -L "$template" ] ||
       fail "shipped template is missing or not a regular file: $template"
   done
-  luna_state=$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")
+  luna_state=$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256" "$legacy_luna_v080_sha256")
   implementer_state=$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256")
   retired_implementer_state=$(classify_current_or_legacy "$retired_implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_terra_v080_sha256" "$legacy_terra_gpt6_sha256")
   reviewer_state=$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" '')
@@ -312,14 +314,14 @@ fi
 [ -d "$target_dir" ] && [ ! -L "$target_dir" ] ||
   fail "target directory changed after preflight: $target_dir"
 
-same_state Luna "$luna_state" "$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")"
+same_state Luna "$luna_state" "$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256" "$legacy_luna_v080_sha256")"
 same_state Sol-implementer "$implementer_state" "$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256")"
 same_state Retired-implementer "$retired_implementer_state" "$(classify_current_or_legacy "$retired_implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_terra_v080_sha256" "$legacy_terra_gpt6_sha256")"
 same_state Reviewer "$reviewer_state" "$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" '')"
 
 case "$luna_state" in
   missing) install_missing "$luna_template" "$luna_destination" ;;
-  legacy) replace_legacy_role Luna "$luna_template" "$luna_destination" "$legacy_luna_sha256" "$legacy_luna_v050_sha256" ;;
+  legacy) replace_legacy_role Luna "$luna_template" "$luna_destination" "$legacy_luna_sha256" "$legacy_luna_v050_sha256" "$legacy_luna_v080_sha256" ;;
   current) printf '%s\n' "ALREADY CURRENT: $luna_destination" ;;
 esac
 
@@ -343,7 +345,7 @@ case "$reviewer_state" in
   current) printf '%s\n' "ALREADY CURRENT: $reviewer_destination" ;;
 esac
 
-[ "$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")" = current ] ||
+[ "$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256" "$legacy_luna_v080_sha256")" = current ] ||
   fail "post-install exactness check failed: $luna_destination"
 [ "$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256")" = current ] ||
   fail "post-install exactness check failed: $implementer_destination"

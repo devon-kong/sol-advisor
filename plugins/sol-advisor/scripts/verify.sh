@@ -237,14 +237,14 @@ pass "UI metadata exposes orchestration and its default route prompt"
 
 jq empty "$manifest"
 case "$(jq -r '.version' "$manifest")" in
-  0.8.1) ;;
-  *) fail "manifest version is not 0.8.1" ;;
+  0.8.2) ;;
+  *) fail "manifest version is not 0.8.2" ;;
 esac
 jq -e '.name == "sol-advisor" and (.plugins | length) == 1 and .plugins[0].name == "sol-advisor" and .plugins[0].source.source == "local" and .plugins[0].source.path == "./plugins/sol-advisor"' "$marketplace" >/dev/null || fail "marketplace metadata does not point to the sole local sol-advisor plugin"
 grep -Fq 'SELECTIVE ROUTE' "$manifest" || fail "manifest omits route declaration"
 jq -e '.interface.longDescription | contains("fail closed") and contains("combined candidate")' "$manifest" >/dev/null || fail "manifest omits full-v2 candidate/evidence fail-closed semantics"
 grep -Fq 'For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery.' "$manifest" || fail "manifest omits startup sequencing"
-pass "manifest JSON and v0.8.1 discovery copy"
+pass "manifest JSON and v0.8.2 discovery copy"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path
@@ -288,6 +288,7 @@ pass "exact three-role TOML inventory"
 grep -Fq "legacy_luna_sha256=$legacy_luna_sha256" "$installer" || fail "installer legacy Luna digest mismatch"
 grep -Fq "legacy_terra_sha256=$legacy_terra_sha256" "$installer" || fail "installer legacy Terra digest mismatch"
 grep -Fq "legacy_luna_v050_sha256=$legacy_luna_v050_sha256" "$installer" || fail "installer v0.5.0 Luna digest mismatch"
+grep -Fq 'legacy_luna_v080_sha256=12fa9180a292876e6731bc325779123bcd931c3caa902fbf90d676a31833be84' "$installer" || fail "installer v0.8.0 Luna digest mismatch"
 grep -Fq "legacy_terra_v050_sha256=$legacy_terra_v050_sha256" "$installer" || fail "installer v0.5.0 Terra digest mismatch"
 grep -Fq "legacy_terra_v073_sha256=$legacy_terra_v073_sha256" "$installer" || fail "installer v0.7.3 Terra digest mismatch"
 grep -Fq "legacy_reviewer_v073_sha256=$legacy_reviewer_v073_sha256" "$installer" || fail "installer v0.7.3 Reviewer digest mismatch"
@@ -731,6 +732,7 @@ all_test_output=$(PYTHONDONTWRITEBYTECODE=1 python3 "$strict_test_runner" --test
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_clean_checkout_fixtures_initialize_their_own_parent \
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_failure_preserves_original_traceback_and_output \
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_previous_reviewer_migrates_but_custom_edits_are_preserved \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_previous_luna_migrates_but_custom_edits_are_preserved \
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_fixture_parent_preserves_existing_content_and_refuses_aliases \
   --required-id test_full_protocol.ReviewerCounterexampleTests.test_documented_design_outputs_are_accepted_without_product_authority \
   --required-id test_behavioral_fixtures.BehavioralFixtureTests.test_full_trace_requires_complete_ordered_delivery_chain \
@@ -754,4 +756,4 @@ sh -n "$runtime_inspector"
 sh -n "$script_dir/verify.sh"
 pass "shell syntax"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor v0.8.1 full-v2 checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor v0.8.2 full-v2 checks completed in $tmp_dir"

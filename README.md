@@ -11,7 +11,7 @@ custom-agent support, jq, and Python 3. The candidate behavior suite is verified
 3.12 and 3.14; other Python versions are not claimed here. Luna / XHigh, Sol implementer / High, or
 Sol reviewer / XHigh access is needed only when that auxiliary is used.
 
-This source tree describes the `0.8.1` full-v2 protocol. Installing from a
+This source tree describes the `0.8.2` full-v2 protocol. Installing from a
 published marketplace ref may still load an older version; verify the installed manifest
 and start a new task before evaluating full-v2 behavior.
 
