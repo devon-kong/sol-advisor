@@ -72,8 +72,8 @@ class ReviewFixture:
             "thread_id": "sol-thread-1",
             "context_id": "sol-context-1",
             "agent_role": "sol_advisor_sol_reviewer",
-            "model": "gpt-5.6-sol",
-            "effort": "high",
+            "model": "gpt-6-sol",
+            "effort": "xhigh",
             "sandbox_policy_type": "read-only",
             "permission_profile_type": "disabled",
             "prompt_digest": "sha256:" + "3" * 64,
@@ -457,7 +457,7 @@ class ReviewPacketTests(unittest.TestCase):
         fixture = self.fixture()
         attestation = {
             "schema": "SA-REVIEW-ATTESTATION-1", "mode": "behavioral-window",
-            "reviewer": {"thread_id": "sol-thread-1", "context_id": "sol-context-1", "context_source": "observed-context", "role": "sol_advisor_sol_reviewer", "model": "gpt-5.6-sol", "effort": "high", "runtime_receipt_digest": "sha256:" + "1" * 64},
+            "reviewer": {"thread_id": "sol-thread-1", "context_id": "sol-context-1", "context_source": "observed-context", "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh", "runtime_receipt_digest": "sha256:" + "1" * 64},
             "observed": {"sandbox_policy_type": "danger-full-access", "permission_profile": "disabled", "prompt_digest": "sha256:" + "2" * 64},
             "windows": [], "attestation_digest": "",
         }

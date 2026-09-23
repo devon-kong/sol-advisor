@@ -12,10 +12,10 @@ protocol reference; keep role cores and task prompts focused on ownership.
 For `full` dispatch, Root reads the orchestration procedures and puts the complete
 five-part work contract directly in the worker prompt. Include the exact role-core path
 and identity for a development-source trial, plus specific risk-method excerpts only
-when needed. Terra reads its core, contract, actual code and related consumers; it does
+when needed. Sol implementer reads its core, contract, actual code and related consumers; it does
 not repeat Root's route declaration, preflight, candidate/receipt publication, or load
 all Root references by default. This limits procedural loading, not product investigation.
-Ordinary implementation/test/self-review failures remain in the same Terra loop; only
+Ordinary implementation/test/self-review failures remain in the same Sol implementer loop; only
 interface, architecture, authority conflicts or real runtime limits require handoff.
 Return a compact evidence index after stopping writes; deterministic tools collect the
 records. This full-only dispatch rule does not alter solo/delegate/audit responsibilities.
@@ -26,7 +26,7 @@ pin model and effort, so omit native per-spawn overrides.
 
 ## Shared implementation contract
 
-Every Luna or Terra prompt must contain these sections:
+Every Luna or Sol implementer prompt must contain these sections:
 
 ~~~text
 OBJECTIVE AND ACCEPTANCE
@@ -76,13 +76,13 @@ JUDGMENT CALLS: <decisions the specification left open, or none>
 GAPS: <unfinished work, ambiguity, or none>
 ~~~
 
-## Luna / Max - bounded implementation
+## Luna / XHigh - bounded implementation
 
 Use only when the declared route selects bounded, fully specified work. A first result
 that demonstrates newly observed judgment-heavy, high-risk, wide-blast-radius, or
-misclassified work may justify declared Terra escalation; do not force a retry first.
+misclassified work may justify declared Sol implementer escalation; do not force a retry first.
 A corrected Luna attempt is reserved for a specification error and is not a prerequisite
-for Terra.
+for Sol implementer.
 
 Spawn exactly:
 
@@ -102,16 +102,16 @@ constraint, and surface ambiguity instead of redesigning the architecture.
 <paste and complete the Shared implementation contract>
 ~~~
 
-## Terra / High - higher-risk implementation
+## Sol implementer / High - higher-risk implementation
 
 Use only when the declared route selects judgment-heavy, high-risk, context-heavy, or
 wide-blast-radius work, including risk revealed by a first Luna result. A corrected Luna
-attempt is reserved for a specification error and is not a prerequisite for Terra.
+attempt is reserved for a specification error and is not a prerequisite for Sol implementer.
 
 Spawn exactly:
 
 ~~~text
-agent_type: sol_advisor_terra_implementer
+agent_type: sol_advisor_sol_implementer
 fork_turns: none
 ~~~
 
@@ -131,7 +131,7 @@ full-workflow.md after your released delivery is candidate-bound.
 
 ## Reviewer - requested-read-only review
 
-For `audit`, spawn after Root verification. For `full`, spawn after structured peer Terra
+For `audit`, spawn after Root verification. For `full`, spawn after structured peer Sol implementer
 delivery and candidate identity binding; Root does not add a default technical rerun. In
 either route, spawn exactly:
 
@@ -140,7 +140,7 @@ agent_type: sol_advisor_sol_reviewer
 fork_turns: none
 ~~~
 
-The installed Reviewer pin is Sol / High and requests a read-only sandbox. Observe the
+The installed Reviewer pin is Sol reviewer / XHigh and requests a read-only sandbox. Observe the
 actual role, pin, sandbox policy, and permission profile before accepting its verdict.
 
 Prompt:
@@ -152,7 +152,8 @@ fixes, or broaden scope.
 
 For `full`, start with the stated high-value contract counterexamples, then complete the
 scope review. Treat design approval, stage progress, and final V/A as separate. A valid
-response uses the verdict triad; unavailable/invalid is separate status. P3 owns the
+product response uses the verdict triad; a design response uses DESIGN_VERDICT with
+design-approved instead of ship. Unavailable/invalid is separate status. P3 owns the
 same-observed-context challenge handshake and CR/V publication; do not invent or write it.
 A correction requires a new fresh review.
 
@@ -166,6 +167,10 @@ through Root's bounded registration/runner, never by modifying the reviewed prod
 STATED GOAL
 <The user's requested outcome.>
 
+REVIEW_SCOPE
+<design | stage | final | stage+final; default final. Design returns only DESIGN_VERDICT;
+product review returns only VERDICT. Never translate one approval into the other.>
+
 ACCEPTANCE BASIS
 <Versioned or inline outcome, preserved behavior, authority, exclusions, evidence, and
 material assumptions.>
@@ -174,7 +179,8 @@ ACCUMULATED CHANGE SET
 <Exact allowed files plus complete working-tree diff, or explicit base/head revisions.>
 
 CANDIDATE
-<Candidate ID and manifest or other exact artifact identifiers.>
+<Product scope: candidate ID and manifest. Design scope: omit this field and provide
+DESIGN_INPUT with its exact digest and contract digest; DR has no product authority.>
 
 INTERFACES AND CONSTRAINTS
 - <Compatibility, repository rules, safety boundaries, and excluded scope.>
@@ -206,8 +212,12 @@ OWNERSHIP: implementer | root | environment | review
 REQUIRED NEXT ACTION: <outcome needed; separate an optional remedy suggestion>
 
 REVIEW RESULT
-REVIEWED_CANDIDATE: <exact candidate ID supplied in CANDIDATE>
+REVIEWED_CANDIDATE: <product scope only: exact candidate ID supplied in CANDIDATE>
+REVIEWED_DESIGN_INPUT: <design scope only: exact input and contract digests>
 REVIEW_STATUS: valid | unavailable | invalid
+design + valid => DESIGN_VERDICT: design-approved | fix-first | rethink
+design + unavailable | invalid => DESIGN_VERDICT: null
+stage | final | stage+final:
 valid => VERDICT: ship | fix-first | rethink
 unavailable | invalid => VERDICT: null
 REASON: <decisive evidence-based reason>

@@ -15,8 +15,8 @@ The user supplies a goal and its constraints, not a task-store JSON document. A 
 request is:
 
 ~~~text
-Use full mode for this change. Plan the dependent stages first. Run independent Terra
-work in parallel only when it saves work, and let each Terra deliver its own changes,
+Use full mode for this change. Plan the dependent stages first. Run independent Sol implementer
+work in parallel only when it saves work, and let each Sol implementer deliver its own changes,
 tests and self-review. Have Sol validate the actual combined candidate, starting with
 critical counterexamples. Root manages decisions and stage acceptance without repeating
 the technical review. Do not install or publish without authorization.
@@ -26,13 +26,13 @@ Root constructs the contract and tool records from that goal. The protocol's own
 implementation phases are not a mandatory seven-stage template for ordinary tasks.
 Use one stage for a bounded coherent result, and several stages when real dependencies
 or reviewable milestones justify them. Progress messages keep work visible; ordinary
-test failures stay in the responsible Terra's repair loop.
+test failures stay in the responsible Sol implementer's repair loop.
 
 - `solo`, `delegate`, and `audit` retain their prior responsibilities.
 - `full` is exceptional. Root writes the immutable task/stage/work/check contract, owns plan,
-  scheduling, conflicts, authority and final acceptance. Independent work may use peer Terra
-  instances; no Terra leads, aggregates or accepts another Terra.
-- Each Terra returns its own M/D/delivery-E and stops writes. Deterministic tools select exact
+  scheduling, conflicts, authority and final acceptance. Independent work may use peer Sol implementer
+  instances; no Sol implementer leads, aggregates or accepts another Sol implementer.
+- Each Sol implementer returns its own M/D/delivery-E and stops writes. Deterministic tools select exact
   attempts and assemble bytes; they never perform a semantic merge or select the “best” result.
 - One fresh Sol context checks critical risks and, if they pass, completes the remaining stage
   scope. Sol returns data and does not write product/artifacts. Root-side tools publish challenge,
@@ -72,7 +72,21 @@ legacy empty suffix; when supplied, every value and order must match a contract-
 An unlisted vector is rejected before an intent is published.
 
 For a tagged design review, `--design-input` is required. Its only design verdicts are
-`design-approved`, `fix-first`, and `rethink`; `ship` belongs only to a final V review.
+`design-approved`, `fix-first`, and `rethink`. Dispatch Sol with `REVIEW_SCOPE: design`
+and retain its `DESIGN_VERDICT`; unavailable/invalid uses null. Product scopes
+(`stage`, `final`, `stage+final`) return `VERDICT`, whose positive result is `ship`.
+Do not translate a product verdict into design approval or the reverse.
+
+The repository verifier initializes fixture scratch directories automatically. On a failed
+suite, its JSON includes `diagnostic.path` and `diagnostic.sha256` for the original traceback
+and captured output. This exclusive temporary log survives the verifier's own cleanup;
+copy it into the task archive when retaining long-term evidence.
+
+The offline action-trace grader requires ordered `stages` with `stage_key` and required
+`work_keys`. Lifecycle events bind `stage_key`/`attempt_id`, with delivery and candidate
+identities linking each handoff. It reports `compliant`, `complete`, and `status` separately:
+a valid prefix is `incomplete` with `passed: false`; only all declared stages accepted in
+order can pass. This calibrates trace evaluation, not native Agent behavior or runtime V/A.
 
 ## Stages, late checks and new probes
 
@@ -85,7 +99,7 @@ against the exact assembled workspace instead of a guessed future path.
 
 Root calls `assemble --stage <stage>` with only that stage's selections. Tools verify the
 accepted upstream chain and combine its retained deliveries with the new work. Root does
-not ask a Terra to aggregate peer results. A terminal review covers this actual cumulative
+not ask a Sol implementer to aggregate peer results. A terminal review covers this actual cumulative
 candidate; summaries of separate green tests are insufficient.
 
 `bundle` freezes the pre-review evidence. After critical challenges, run required pre-ship
@@ -183,7 +197,7 @@ These examples show the orchestration shape. The JSON files are immutable record
 the task contract and observed native runtime; they are not hand-written substitutes for Agent
 identity. `expected-state-version` must come from the immediately preceding `status` result.
 
-### One Terra, one stage
+### One Sol implementer, one stage
 
 Root creates a contract with one work item, one owner and one common Git baseline, then initializes
 the task store:
@@ -193,13 +207,13 @@ python3 plugins/sol-advisor/scripts/workflow.py init \
   --task-dir "$task_dir" --contract "$inputs/contract.json" --state "$inputs/state.json"
 ~~~
 
-Root sends Terra the complete objective/acceptance, owned files, interfaces, constraints and
+Root sends Sol implementer the complete objective/acceptance, owned files, interfaces, constraints and
 verification contract directly. For a development-source trial, include the exact
-`plugins/sol-advisor/agents/sol-advisor-terra-implementer.toml` path and hash. The worker loads that
+`plugins/sol-advisor/agents/sol-advisor-sol-implementer.toml` path and hash. The worker loads that
 core, its contract and relevant product code; Root keeps orchestration-reference loading and
 tool publication. Add a specific risk-method reference only when the owned work needs it.
 
-After the native Terra completes its own implementation, tests and self-review, Root records that
+After the native Sol implementer completes its own implementation, tests and self-review, Root records that
 single delivery without re-performing its technical work:
 
 ~~~sh
@@ -219,10 +233,10 @@ challenge and remaining-scope review on the assembled candidate. A `ship` is val
 runtime, challenge, E/CR and V relationships pass `review-packet.py inspect` and the original
 candidate ID still verifies.
 
-### Two independent peer Terra deliveries
+### Two independent peer Sol implementer deliveries
 
 Root first proves that `api` and `docs` have disjoint ownership and no unresolved shared mutable
-interface. The two native Terra tasks may then run concurrently. They remain peers and each returns
+interface. The two native Sol implementer tasks may then run concurrently. They remain peers and each returns
 its own M/D/E/bundle/runtime package. Durable receipt publication is serialized through state CAS:
 
 ~~~sh
@@ -245,12 +259,12 @@ python3 plugins/sol-advisor/scripts/workflow.py assemble \
 
 `selected-api-docs.json` maps each work key to one exact delivery ID. Overlap, a different baseline
 or a stale state version is rejected; Root resolves the cause and returns it to the responsible work
-item. No Terra merges, accepts or summarizes the other Terra's result. Sol reviews the real combined
+item. No Sol implementer merges, accepts or summarizes the other Sol implementer's result. Sol reviews the real combined
 candidate, not two green summaries.
 
 ### High-risk design challenge before implementation
 
-For a genuinely high-risk decision, one Terra may produce a design/probe record without changing
+For a genuinely high-risk decision, one Sol implementer may produce a design/probe record without changing
 the product. A fresh design Sol challenges that record. Root publishes the observed review through
 the tool rather than letting Sol write task artifacts:
 
@@ -290,6 +304,6 @@ Unit tests, deterministic trace graders, real Agent behavior and independent rev
 evidence classes. P2 supports explicitly contracted behavioral reviewer admission through a
 Root-observed begin/end window. That window is not hard isolation and cannot detect write-then-restore.
 Hard-required tasks still need an observed read-only host. Current native evidence must name its
-exact source candidate and task; historical runs do not approve later bytes. The five paired cases are bounded Terra runs rather than a
+exact source candidate and task; historical runs do not approve later bytes. The five paired cases are bounded earlier implementer runs rather than a
 three-repeat end-to-end full-route comparison. See `FINAL-REPORT.md`, `metrics.json` and
 `docs/full-v2/REQUIREMENTS-MAP.md` before claiming readiness, cost reduction or production safety.

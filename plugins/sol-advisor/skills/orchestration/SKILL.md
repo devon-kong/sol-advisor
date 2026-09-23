@@ -49,7 +49,7 @@ escalation. Details and the task-scoped preflight matrix are in operations.md.
 
 ## Preflight and verify only the active auxiliary stage
 
-Solo checks no auxiliary. Immediately before spawning Luna or Terra, non-mutatingly
+Solo checks no auxiliary. Immediately before spawning Luna or Sol implementer, non-mutatingly
 preflight only that selected implementer. Immediately before spawning the Reviewer at
 the review stage, preflight only the Reviewer. In `full`, do not preflight the Reviewer
 at route start: delivery or mechanical admission may prevent that stage from being reached.
@@ -64,30 +64,30 @@ model, effort, or reviewer.
 ## Route delivery without duplication
 
 - `solo`: root plans, implements, tests, and self-reviews; spawn no auxiliary.
-- `delegate`: select Luna / Max for bounded, fully specified work, or Terra / High for
+- `delegate`: select Luna / XHigh for bounded, fully specified work, or Sol implementer / High for
   judgment-heavy, high-risk, context-heavy, or wide-blast-radius work. The selected
   implementer executes the complete spec; root verifies; do not request a fresh review.
-- `audit`: root implements and verifies; a fresh read-only Sol / High reviewer reviews
+- `audit`: root implements and verifies; a fresh read-only Sol reviewer / XHigh reviews
   the accumulated diff; spawn no implementer.
 - `full`: only for an explicit broad or high-risk exception. Root owns plan, identity,
-  decision, release, and final acceptance; it schedules one or more peer Terra stage
+  decision, release, and final acceptance; it schedules one or more peer Sol implementer stage
   deliveries under the immutable task contract, then fresh Sol performs technical
   validation. Root investigates exceptions and binds identity, but does not perform a
   default technical rerun or duplicate diff review.
 
 For `full` only, read [full-workflow.md](references/full-workflow.md) before writing the
-task contract or worker prompt. It defines the immutable/mutable boundary, Terra peer
+task contract or worker prompt. It defines the immutable/mutable boundary, Sol implementer peer
 delivery, Sol challenge lifecycle, design/stage/final separation, recovery, and acceptance
 provenance; it does not alter the three non-full routes.
 Root loads these orchestration references once. For full workers, send the complete owned
 work contract, exact development role-core path/identity when applicable, and only the
-specific risk references needed by that work. Do not make each Terra repeat Root's
+specific risk references needed by that work. Do not make each Sol implementer repeat Root's
 SKILL/operations/artifact initialization; workers still inspect actual code and consumers.
 
 Auxiliary work must substitute for root work, not duplicate it. A Luna result may
-justify escalation to Terra / High only when it reveals newly observed complexity,
+justify escalation to Sol implementer / High only when it reveals newly observed complexity,
 risk, wide blast radius, or misclassification. A corrected Luna attempt is reserved
-for a specification error and is not a prerequisite for Terra. Any route change must
+for a specification error and is not a prerequisite for Sol implementer. Any route change must
 be declared and evidenced; do not silently downgrade.
 
 ## Establish one acceptance basis
@@ -130,7 +130,7 @@ preserve concurrent edits, and never silently widen scope.
 Treat worker reports as claims. In `solo`, `delegate`, and `audit`, confirm the complete
 diff, changed-file scope, requested checks, and artifact/runtime evidence as Root. In
 `full`, confirm structured delivery identity/provenance and only investigate a concrete
-exception; do not duplicate peer Terra or Sol technical work.
+exception; do not duplicate peer Sol implementer or Sol technical work.
 
 ## Keep verification evidence stable
 
@@ -187,9 +187,9 @@ on an authorized resume, preserve prior failures and the cumulative closure reco
 
 ## Review only when the route includes it
 
-For `audit`, after Root verification, spawn a new native Sol / High reviewer. For `full`,
-after structured Terra deliveries and identity binding, spawn a new native Sol / High
-technical reviewer. The reviewer must remain behaviorally read-only, inspect the actual
+For `audit`, after Root verification, spawn a new native Sol reviewer / XHigh. For `full`,
+after structured Sol implementer deliveries and identity binding, spawn a new native
+Sol reviewer / XHigh. The reviewer must remain behaviorally read-only, inspect the actual
 accumulated diff, and return `REVIEW_STATUS: valid|unavailable|invalid`; only valid carries
 exactly one of ship, fix-first, or rethink. A reviewer never implements its own fixes. For
 every high-risk or repeated-omission principal material
@@ -200,7 +200,7 @@ hash or log alone is not approval. `solo` and `delegate` do not receive a fresh 
 - fix-first applies only to `audit` and `full`:
   - audit: the root implements the required correction, re-verifies, and obtains a new
     fresh reviewer.
-  - full: the relevant peer Terra stage handles the required correction; Root binds the
+  - full: the relevant peer Sol implementer stage handles the required correction; Root binds the
     new delivery/candidate identity, and a new fresh Sol technical review follows.
   - solo and delegate: no fresh reviewer is added unless a newly observed,
     risk-evidenced route escalation is declared; never silently add one.

@@ -7,10 +7,15 @@ summary: ``unittest`` supplies the discovered IDs and result categories directly
 from __future__ import annotations
 
 import argparse
+from contextlib import redirect_stderr, redirect_stdout
+import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import sys
+import tempfile
+import traceback
 import unittest
 
 
@@ -58,6 +63,7 @@ def main(argv: list[str]) -> int:
         "failures": [],
         "errors": [],
         "status": "fail",
+        "diagnostic": None,
     }
 
     if not tests_dir.is_dir():
@@ -66,8 +72,10 @@ def main(argv: list[str]) -> int:
         return 2
 
     loader = unittest.defaultTestLoader
+    diagnostic = io.StringIO()
     try:
-        suite = loader.discover(str(tests_dir), pattern=args.pattern)
+        with redirect_stdout(diagnostic), redirect_stderr(diagnostic):
+            suite = loader.discover(str(tests_dir), pattern=args.pattern)
         tests = flatten_tests(suite)
         discovered = sorted(test.id() for test in tests)
         discovered_set = set(discovered)
@@ -75,8 +83,10 @@ def main(argv: list[str]) -> int:
         report["discovered_required"] = sorted(discovered_set.intersection(required))
         report["missing_required"] = sorted(set(required).difference(discovered_set))
 
-        diagnostic = io.StringIO()
-        result = unittest.TextTestRunner(stream=diagnostic, verbosity=2, buffer=True).run(suite)
+        # unittest mirrors buffered output from failed tests to its original streams.
+        # Capture those too so stdout remains exactly one machine-readable JSON object.
+        with redirect_stdout(diagnostic), redirect_stderr(diagnostic):
+            result = unittest.TextTestRunner(stream=diagnostic, verbosity=2, buffer=True).run(suite)
         skipped = result_ids(result.skipped)
         expected_failures = result_ids(result.expectedFailures)
         unexpected_successes = sorted(test.id() for test in result.unexpectedSuccesses)
@@ -101,6 +111,24 @@ def main(argv: list[str]) -> int:
         report["status"] = "pass" if accepted else "fail"
     except Exception as exc:  # Fail closed while preserving a machine-readable cause.
         report["errors"] = [f"runner exception: {type(exc).__name__}: {exc}"]
+        traceback.print_exc(file=diagnostic)
+
+    if report["status"] != "pass":
+        contents = diagnostic.getvalue().encode("utf-8")
+        try:
+            # The outer shell verifier deletes its own scratch directory on exit.
+            # A separate, exclusive file survives that cleanup and never overwrites evidence.
+            fd, path = tempfile.mkstemp(prefix="sol-advisor-test-failure-", suffix=".log")
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(contents)
+            report["diagnostic"] = {
+                "path": str(Path(path).resolve()),
+                "sha256": hashlib.sha256(contents).hexdigest(),
+            }
+        except OSError as exc:
+            report["diagnostic_error"] = f"{type(exc).__name__}: {exc}"
+            # Disk trouble must not swallow the only copy of the original failure.
+            print(diagnostic.getvalue(), file=sys.stderr, end="")
 
     print(json.dumps(report, sort_keys=True))
     return 0 if report["status"] == "pass" else 1

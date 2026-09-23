@@ -1056,14 +1056,14 @@ def _validate_runtime_receipt(
             affected=work_key, recovery="rerun-native-runtime-inspection",
         )
     if (
-        runtime["agent_role"] != "sol_advisor_terra_implementer"
-        or runtime["model"] != "gpt-5.6-terra"
+        runtime["agent_role"] != "sol_advisor_sol_implementer"
+        or runtime["model"] != "gpt-6-sol"
         or runtime["effort"] != "high"
         or runtime["work_key"] != work_key
         or (expected_stage_key is not None and runtime["stage_key"] != expected_stage_key)
     ):
         raise WorkflowError(
-            "review-invalid", "runtime receipt is not the required Terra identity/work item",
+            "review-invalid", "runtime receipt is not the required Sol implementer identity/work item",
             affected=work_key, recovery="obtain-correct-native-runtime-receipt",
         )
     attestation = delivery.get("attestation")

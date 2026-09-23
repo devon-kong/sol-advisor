@@ -6,7 +6,7 @@ import os
 import signal
 import subprocess
 import sys
-import tempfile
+from fixture_support import fixture_directory
 import threading
 import time
 from pathlib import Path
@@ -45,7 +45,7 @@ class RunCheckFixture:
         acceptance_material_paths: list[str] | None = None,
         allowed_argv_suffixes: list[list[str]] | None = None,
     ) -> None:
-        self.temp = tempfile.TemporaryDirectory(dir=TEST_ARTIFACTS)
+        self.temp = fixture_directory(TEST_ARTIFACTS)
         self.root = Path(self.temp.name)
         self.script = self.root / "check.py"
         self.script.write_text(script_body, encoding="utf-8")

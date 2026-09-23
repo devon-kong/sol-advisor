@@ -1053,8 +1053,8 @@ def _validate_reviewer_attestation(value: object) -> dict[str, Any]:
     attestation = _validate_observed_attestation(value)
     if (
         attestation["role"] != "sol_advisor_sol_reviewer"
-        or attestation["model"] != "gpt-5.6-sol"
-        or attestation["effort"] != "high"
+        or attestation["model"] != "gpt-6-sol"
+        or attestation["effort"] != "xhigh"
     ):
         raise RelationshipValidationError("V observed attestation is not the required Sol reviewer identity")
     return attestation
@@ -1085,7 +1085,7 @@ def validate_review_attestation(value: object, task_contract: object) -> dict[st
         raise RelationshipValidationError("review attestation context source is invalid")
     if reviewer["context_source"] == "verified-thread-id" and reviewer["context_id"] != reviewer["thread_id"]:
         raise RelationshipValidationError("verified-thread-id context must equal reviewer thread")
-    if (reviewer["role"], reviewer["model"], reviewer["effort"]) != ("sol_advisor_sol_reviewer", "gpt-5.6-sol", "high"):
+    if (reviewer["role"], reviewer["model"], reviewer["effort"]) != ("sol_advisor_sol_reviewer", "gpt-6-sol", "xhigh"):
         raise RelationshipValidationError("review attestation does not bind the Sol reviewer pin")
     observed = _mapping(attestation["observed"], "review attestation observed", RelationshipValidationError)
     if set(observed) != {"sandbox_policy_type", "permission_profile", "prompt_digest"}:
@@ -1138,7 +1138,7 @@ def _validate_v2_review_attestation(value: object, contract: Mapping[str, Any]) 
         raise RelationshipValidationError("review attestation reviewer fields are invalid")
     if reviewer["context_source"] not in {"observed-context", "verified-thread-id"} or (reviewer["context_source"] == "verified-thread-id" and reviewer["context_id"] != reviewer["thread_id"]):
         raise RelationshipValidationError("review attestation context source is invalid")
-    if (reviewer["role"], reviewer["model"], reviewer["effort"]) != ("sol_advisor_sol_reviewer", "gpt-5.6-sol", "high"):
+    if (reviewer["role"], reviewer["model"], reviewer["effort"]) != ("sol_advisor_sol_reviewer", "gpt-6-sol", "xhigh"):
         raise RelationshipValidationError("review attestation does not bind the Sol reviewer pin")
     observed = _mapping(attestation["observed"], "review attestation observed", RelationshipValidationError)
     if set(observed) != {"sandbox_policy_type", "permission_profile", "prompt_digest"} or any(not isinstance(item, str) or not item for item in observed.values()):

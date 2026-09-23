@@ -9,14 +9,14 @@ publication, push, or destructive cleanup.
 ## Participants and decision separation
 
 Root writes the immutable task contract, owns mutable-state CAS, identity binding, decision,
-release, exception investigation, and final acceptance. It schedules one or more peer Terra
-stage deliveries; Terra independently delivers, self-tests, and self-reviews owned work and
+release, exception investigation, and final acceptance. It schedules one or more peer Sol implementer
+stage deliveries; Sol implementer independently delivers, self-tests, and self-reviews owned work and
 is never a lead, integrator, or default technical rerunner. P2/P3 deterministic tools publish
 their own records. Fresh Sol is read-only: it starts with high-value contract
 counterexamples, then completes technical validation. Root does not perform a duplicate full
 technical rerun or diff review by default.
 
-Root loads the orchestration procedure once and sends each Terra its complete work
+Root loads the orchestration procedure once and sends each Sol implementer its complete work
 contract, exact role-core identity, and any specifically needed risk reference. A worker
 does not reload Root's SKILL, operations, or artifact procedure as a startup checklist.
 It reads the product code and related consumers needed for its owned result, completes
@@ -169,7 +169,7 @@ are `runtime/environment-unavailable`, never passed, logged, hashed, or cached. 
 exact scope plus harness/input/runtime/platform/executable/interpreter identity and bounded
 logs.
 
-`fix-first` invalidates the candidate/verdict. Terra corrects only released ownership, Root
+`fix-first` invalidates the candidate/verdict. Sol implementer corrects only released ownership, Root
 binds/verifies the changed candidate, and a fresh Sol review follows. For corrected P2 candidates,
 review admission checks both observed thread and context against the complete rejection
 ancestry. Reuse of either identity, or missing identity needed to prove independence,

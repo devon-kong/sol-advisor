@@ -50,6 +50,7 @@ tmp_dir=$(mktemp -d "$tmp_base/sol-advisor-verify.XXXXXX") || fail "could not cr
 
 luna_file=sol-advisor-luna-implementer.toml
 terra_file=sol-advisor-terra-implementer.toml
+implementer_file=sol-advisor-sol-implementer.toml
 sol_file=sol-advisor-sol-reviewer.toml
 legacy_luna_sha256=fba1b42849d93737e83b094a2ab0b1611f87ac37db7438c8bbdf581f0813f8eb
 legacy_terra_sha256=4425a8c1f21ce8c6af93f96adc253bbc33ea301f1389b3fa8ce350be08584eca
@@ -235,12 +236,15 @@ if grep -Eq '^default_prompt:' "$ui"; then fail "UI metadata has a root-level de
 pass "UI metadata exposes orchestration and its default route prompt"
 
 jq empty "$manifest"
-[ "$(jq -r '.version' "$manifest")" = 0.8.0 ] || fail "manifest version is not 0.8.0"
+case "$(jq -r '.version' "$manifest")" in
+  0.8.1) ;;
+  *) fail "manifest version is not 0.8.1" ;;
+esac
 jq -e '.name == "sol-advisor" and (.plugins | length) == 1 and .plugins[0].name == "sol-advisor" and .plugins[0].source.source == "local" and .plugins[0].source.path == "./plugins/sol-advisor"' "$marketplace" >/dev/null || fail "marketplace metadata does not point to the sole local sol-advisor plugin"
 grep -Fq 'SELECTIVE ROUTE' "$manifest" || fail "manifest omits route declaration"
 jq -e '.interface.longDescription | contains("fail closed") and contains("combined candidate")' "$manifest" >/dev/null || fail "manifest omits full-v2 candidate/evidence fail-closed semantics"
 grep -Fq 'For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery.' "$manifest" || fail "manifest omits startup sequencing"
-pass "manifest JSON and v0.8.0 discovery copy"
+pass "manifest JSON and v0.8.1 discovery copy"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path
@@ -251,18 +255,18 @@ root = Path(sys.argv[1])
 expected = {
     "sol-advisor-luna-implementer.toml": {
         "name": "sol_advisor_luna_implementer",
-        "model": "gpt-5.6-luna",
-        "model_reasoning_effort": "max",
+        "model": "gpt-6-luna",
+        "model_reasoning_effort": "xhigh",
     },
-    "sol-advisor-terra-implementer.toml": {
-        "name": "sol_advisor_terra_implementer",
-        "model": "gpt-5.6-terra",
+    "sol-advisor-sol-implementer.toml": {
+        "name": "sol_advisor_sol_implementer",
+        "model": "gpt-6-sol",
         "model_reasoning_effort": "high",
     },
     "sol-advisor-sol-reviewer.toml": {
         "name": "sol_advisor_sol_reviewer",
-        "model": "gpt-5.6-sol",
-        "model_reasoning_effort": "high",
+        "model": "gpt-6-sol",
+        "model_reasoning_effort": "xhigh",
         "sandbox_mode": "read-only",
     },
 }
@@ -291,17 +295,20 @@ pass "immutable historical migration fingerprints"
 
 no_home_target=$tmp_dir/no-home-explicit
 env -u HOME -u CODEX_HOME PATH="$PATH" sh "$installer" --target-dir "$no_home_target"
-for role in "$luna_file" "$terra_file" "$sol_file"; do
+for role in "$luna_file" "$implementer_file" "$sol_file"; do
   cmp -s "$templates/$role" "$no_home_target/$role" || fail "explicit target without HOME mismatch: $role"
 done
 pass "explicit target works without HOME or CODEX_HOME"
 
 clean_target=$tmp_dir/clean
 sh "$installer" --target-dir "$clean_target"
-for role in "$luna_file" "$terra_file" "$sol_file"; do
+for role in "$luna_file" "$implementer_file" "$sol_file"; do
   cmp -s "$templates/$role" "$clean_target/$role" || fail "clean install mismatch: $role"
 done
 sh "$installer" --target-dir "$clean_target" --check
+if sh "$installer" --target-dir "$clean_target" --check-role terra >/dev/null 2>&1; then
+  fail "retired Terra role remains selectable"
+fi
 before=$(snapshot_files "$clean_target")
 sh "$installer" --target-dir "$clean_target"
 after=$(snapshot_files "$clean_target")
@@ -310,14 +317,14 @@ pass "clean install, exact check, and idempotence"
 
 selective_target=$tmp_dir/selective
 sh "$installer" --target-dir "$selective_target"
-printf '%s\n' modified >> "$selective_target/$terra_file"
+printf '%s\n' modified >> "$selective_target/$implementer_file"
 before=$(snapshot_files "$selective_target")
 sh "$installer" --target-dir "$selective_target" --check-role luna
 sh "$installer" --target-dir "$selective_target" --check-role reviewer
 sh "$installer" --target-dir "$selective_target" --check-role luna --check-role reviewer
 after=$(snapshot_files "$selective_target")
 [ "$before" = "$after" ] || fail "selective Luna/Reviewer check mutated conflicting Terra target"
-if sh "$installer" --target-dir "$selective_target" --check-role terra >/dev/null 2>&1; then
+if sh "$installer" --target-dir "$selective_target" --check-role implementer >/dev/null 2>&1; then
   fail "selective Terra check accepted conflicting Terra target"
 fi
 after=$(snapshot_files "$selective_target")
@@ -340,7 +347,7 @@ selective_terra_target=$tmp_dir/selective-terra
 sh "$installer" --target-dir "$selective_terra_target"
 printf '%s\n' modified >> "$selective_terra_target/$luna_file"
 before=$(snapshot_files "$selective_terra_target")
-sh "$installer" --target-dir "$selective_terra_target" --check-role terra --check-role reviewer
+sh "$installer" --target-dir "$selective_terra_target" --check-role implementer --check-role reviewer
 after=$(snapshot_files "$selective_terra_target")
 [ "$before" = "$after" ] || fail "selective Terra/Reviewer check mutated conflicting Luna target"
 if sh "$installer" --target-dir "$selective_terra_target" --check-role luna >/dev/null 2>&1; then
@@ -361,21 +368,21 @@ isolated_installer=$isolated_plugin/scripts/install-agents.sh
 isolated_target=$tmp_dir/isolated-terra
 mkdir -p "$isolated_templates" "$(dirname "$isolated_installer")" "$isolated_target"
 cp "$installer" "$isolated_installer"
-cp "$templates/$terra_file" "$isolated_templates/$terra_file"
-cp "$templates/$terra_file" "$isolated_target/$terra_file"
+cp "$templates/$implementer_file" "$isolated_templates/$implementer_file"
+cp "$templates/$implementer_file" "$isolated_target/$implementer_file"
 ln -s /missing-luna "$isolated_target/$luna_file"
 mkdir "$isolated_target/$sol_file"
-sh "$isolated_installer" --target-dir "$isolated_target" --check-role terra
+sh "$isolated_installer" --target-dir "$isolated_target" --check-role implementer
 before=$(snapshot_files "$isolated_target")
-printf '%s\n' modified >> "$isolated_target/$terra_file"
+printf '%s\n' modified >> "$isolated_target/$implementer_file"
 selected_mismatch=$(snapshot_files "$isolated_target")
-if sh "$isolated_installer" --target-dir "$isolated_target" --check-role terra >/dev/null 2>&1; then
+if sh "$isolated_installer" --target-dir "$isolated_target" --check-role implementer >/dev/null 2>&1; then
   fail "selected Terra mismatch was accepted in isolated-role fixture"
 fi
 after=$(snapshot_files "$isolated_target")
 [ "$before" != "$after" ] || fail "isolated Terra fixture did not create its selected mismatch"
 [ "$selected_mismatch" = "$after" ] || fail "selected Terra mismatch check mutated the destination"
-if [ "$(tail -n 1 "$isolated_target/$terra_file")" != modified ]; then
+if [ "$(tail -n 1 "$isolated_target/$implementer_file")" != modified ]; then
   fail "selected Terra mismatch fixture changed the destination"
 fi
 pass "selected Terra check isolates absent unselected sources and unsafe unselected destinations"
@@ -387,7 +394,7 @@ pass "missing-target check refusal is non-mutating"
 
 codex_home=$tmp_dir/codex-home
 CODEX_HOME="$codex_home" sh "$installer"
-for role in "$luna_file" "$terra_file" "$sol_file"; do
+for role in "$luna_file" "$implementer_file" "$sol_file"; do
   cmp -s "$templates/$role" "$codex_home/agents/$role" || fail "CODEX_HOME install mismatch: $role"
 done
 test ! -e "$codex_home/config.toml" || fail "installer created config.toml"
@@ -400,7 +407,7 @@ pass "CODEX_HOME and relative target behavior"
 migration_target=$tmp_dir/migration
 write_legacy_roles "$migration_target"
 sh "$installer" --target-dir "$migration_target"
-for role in "$luna_file" "$terra_file" "$sol_file"; do
+for role in "$luna_file" "$implementer_file" "$sol_file"; do
   cmp -s "$templates/$role" "$migration_target/$role" || fail "historical migration mismatch: $role"
 done
 sh "$installer" --target-dir "$migration_target" --check
@@ -409,7 +416,7 @@ pass "exact historical Luna/Terra migration"
 v050_migration_target=$tmp_dir/v050-migration
 write_v050_roles "$v050_migration_target"
 sh "$installer" --target-dir "$v050_migration_target"
-for role in "$luna_file" "$terra_file" "$sol_file"; do
+for role in "$luna_file" "$implementer_file" "$sol_file"; do
   cmp -s "$templates/$role" "$v050_migration_target/$role" || fail "v0.5.0 migration mismatch: $role"
 done
 sh "$installer" --target-dir "$v050_migration_target" --check
@@ -424,7 +431,7 @@ fi
 after=$(snapshot_files "$v073_migration_target")
 [ "$before" = "$after" ] || fail "v0.7.3 check-only mutated the migration target"
 sh "$installer" --target-dir "$v073_migration_target"
-for role in "$luna_file" "$terra_file" "$sol_file"; do
+for role in "$luna_file" "$implementer_file" "$sol_file"; do
   cmp -s "$templates/$role" "$v073_migration_target/$role" || fail "v0.7.3 migration mismatch: $role"
 done
 sh "$installer" --target-dir "$v073_migration_target" --check
@@ -493,7 +500,7 @@ before=$(snapshot_files "$unsafe")
 if sh "$installer" --target-dir "$unsafe"; then fail "installer accepted symlinked Luna"; fi
 after=$(snapshot_files "$unsafe")
 [ "$before" = "$after" ] || fail "symlink refusal partially mutated target"
-test ! -e "$unsafe/$terra_file" || fail "symlink refusal partially installed Terra"
+test ! -e "$unsafe/$implementer_file" || fail "symlink refusal partially installed Terra"
 test ! -e "$unsafe/$sol_file" || fail "symlink refusal partially installed Sol"
 pass "unsafe destination refusal with zero partial mutation"
 
@@ -505,54 +512,54 @@ runtime_rollout=$runtime_day/rollout-2026-08-15T00-00-00-$runtime_id.jsonl
 printf '%s\n' \
   '{"type":"response_item","payload":{"prompt":"DO_NOT_LEAK_PROMPT"}}' \
   "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$runtime_id\",\"parent_thread_id\":\"00000000-0000-7000-8000-000000000000\",\"agent_role\":\"sol_advisor_luna_implementer\",\"agent_path\":\"/root/fixture\",\"model_provider\":\"openai\",\"cwd\":\"/fixture\"}}" \
-  '{"type":"turn_context","payload":{"model":"gpt-5.6-luna","effort":"max","sandbox_policy":{"type":"danger-full-access"},"permission_profile":{"type":"disabled"},"cwd":"/fixture"}}' \
+  '{"type":"turn_context","payload":{"model":"gpt-6-luna","effort":"xhigh","sandbox_policy":{"type":"danger-full-access"},"permission_profile":{"type":"disabled"},"cwd":"/fixture"}}' \
   > "$runtime_rollout"
 runtime_output=$(sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$runtime_id")
 printf '%s\n' "$runtime_output" | jq -e --arg id "$runtime_id" '
   .thread_id == $id and .agent_role == "sol_advisor_luna_implementer"
-  and .model == "gpt-5.6-luna" and .effort == "max"
+  and .model == "gpt-6-luna" and .effort == "xhigh"
   and .sandbox_policy_type == "danger-full-access"
   and .permission_profile_type == "disabled"
-' >/dev/null || fail "runtime inspector returned wrong Luna/Max evidence"
+' >/dev/null || fail "runtime inspector returned wrong Luna/XHigh evidence"
 if printf '%s\n' "$runtime_output" | grep -Fq DO_NOT_LEAK; then fail "runtime inspector leaked payload"; fi
 if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" invalid >/dev/null 2>&1; then fail "runtime inspector accepted invalid id"; fi
 zero_id=22222222-2222-7222-8222-222222222222
 if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$zero_id" >/dev/null 2>&1; then fail "runtime inspector accepted zero matches"; fi
-pass "runtime inspector Luna/Max routing and safe refusal"
+pass "runtime inspector Luna/XHigh routing and safe refusal"
 
 terra_id=33333333-3333-7333-8333-333333333333
 terra_rollout=$runtime_day/rollout-2026-08-15T00-00-01-$terra_id.jsonl
 printf '%s\n' \
-  "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$terra_id\",\"parent_thread_id\":\"00000000-0000-7000-8000-000000000000\",\"agent_role\":\"sol_advisor_terra_implementer\",\"agent_path\":\"/root/fixture\",\"model_provider\":\"openai\",\"cwd\":\"/fixture\"}}" \
-  '{"type":"turn_context","payload":{"model":"gpt-5.6-terra","effort":"high","sandbox_policy":{"type":"danger-full-access"},"permission_profile":{"type":"disabled"},"cwd":"/fixture"}}' \
+  "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$terra_id\",\"parent_thread_id\":\"00000000-0000-7000-8000-000000000000\",\"agent_role\":\"sol_advisor_sol_implementer\",\"agent_path\":\"/root/fixture\",\"model_provider\":\"openai\",\"cwd\":\"/fixture\"}}" \
+  '{"type":"turn_context","payload":{"model":"gpt-6-sol","effort":"high","sandbox_policy":{"type":"danger-full-access"},"permission_profile":{"type":"disabled"},"cwd":"/fixture"}}' \
   > "$terra_rollout"
 terra_output=$(sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$terra_id")
 printf '%s\n' "$terra_output" | jq -e --arg id "$terra_id" '
-  .thread_id == $id and .agent_role == "sol_advisor_terra_implementer"
-  and .model == "gpt-5.6-terra" and .effort == "high"
+  .thread_id == $id and .agent_role == "sol_advisor_sol_implementer"
+  and .model == "gpt-6-sol" and .effort == "high"
   and .sandbox_policy_type == "danger-full-access"
   and .permission_profile_type == "disabled"
-' >/dev/null || fail "runtime inspector returned wrong Terra/High evidence"
-pass "runtime inspector Terra/High routing evidence"
+' >/dev/null || fail "runtime inspector returned wrong Sol implementer/High evidence"
+pass "runtime inspector Sol implementer/High routing evidence"
 
 reviewer_id=44444444-4444-7444-8444-444444444444
 reviewer_rollout=$runtime_day/rollout-2026-08-15T00-00-02-$reviewer_id.jsonl
 printf '%s\n' \
   "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$reviewer_id\",\"parent_thread_id\":\"00000000-0000-7000-8000-000000000000\",\"agent_role\":\"sol_advisor_sol_reviewer\",\"agent_path\":\"/root/fixture\",\"model_provider\":\"openai\",\"cwd\":\"/fixture\"}}" \
-  '{"type":"turn_context","payload":{"model":"gpt-5.6-sol","effort":"high","sandbox_policy":{"type":"read-only"},"permission_profile":{"type":"disabled"},"cwd":"/fixture"}}' \
+  '{"type":"turn_context","payload":{"model":"gpt-6-sol","effort":"xhigh","sandbox_policy":{"type":"read-only"},"permission_profile":{"type":"disabled"},"cwd":"/fixture"}}' \
   > "$reviewer_rollout"
 reviewer_output=$(sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$reviewer_id")
 printf '%s\n' "$reviewer_output" | jq -e --arg id "$reviewer_id" '
   .thread_id == $id and .agent_role == "sol_advisor_sol_reviewer"
-  and .model == "gpt-5.6-sol" and .effort == "high"
+  and .model == "gpt-6-sol" and .effort == "xhigh"
   and .sandbox_policy_type == "read-only"
   and .permission_profile_type == "disabled"
-' >/dev/null || fail "runtime inspector returned wrong Reviewer Sol/High/read-only evidence"
-pass "runtime inspector Reviewer Sol/High/read-only evidence"
+' >/dev/null || fail "runtime inspector returned wrong Reviewer Sol/XHigh/read-only evidence"
+pass "runtime inspector Reviewer Sol/XHigh/read-only evidence"
 
 for document in "$contracts" "$operations"; do
   grep -Fq 'agent_type: sol_advisor_luna_implementer' "$document" || fail "missing Luna spawn in $document"
-  grep -Fq 'agent_type: sol_advisor_terra_implementer' "$document" || fail "missing Terra spawn in $document"
+  grep -Fq 'agent_type: sol_advisor_sol_implementer' "$document" || fail "missing Sol implementer spawn in $document"
   grep -Fq 'agent_type: sol_advisor_sol_reviewer' "$document" || fail "missing Reviewer spawn in $document"
   grep -Fq 'fork_turns: none' "$document" || fail "missing fresh context in $document"
   if grep -Eq 'agent_type:.*terra_max' "$document"; then fail "retired Terra-Max spawn remains in $document"; fi
@@ -592,12 +599,12 @@ for mode in solo delegate audit full; do
   grep -Fq "\`$mode\`" "$skill" || fail "skill omits $mode mode"
 done
 grep -Fqi 'auxiliary work must substitute for root work' "$skill" || fail "skill permits duplicate auxiliary work"
-grep -Fqi 'first Luna result' "$contracts" || fail "contracts omit Luna-to-Terra escalation"
+grep -Fqi 'first Luna result' "$contracts" || fail "contracts omit Luna-to-Sol implementer escalation"
 grep -Fqi 'not a prerequisite' "$contracts" || fail "contracts make corrected Luna mandatory"
 grep -Fq 'do not request a fresh review' "$skill" || fail "skill makes delegate review mandatory"
 grep -Fq '`solo` and `delegate` do not receive a fresh reviewer' "$skill" || fail "skill makes solo/delegate review mandatory"
 grep -Fq 'audit: the root implements the required correction, re-verifies, and obtains a new' "$skill" || fail "skill does not assign audit corrections to root"
-grep -Fq 'full: the relevant peer Terra stage handles the required correction' "$skill" || fail "skill does not return full corrections to the owning peer Terra stage"
+grep -Fq 'full: the relevant peer Sol implementer stage handles the required correction' "$skill" || fail "skill does not return full corrections to the owning peer Sol implementer stage"
 grep -Fq 'new delivery/candidate identity' "$skill" || fail "skill does not invalidate full candidate identity after correction"
 if grep -Fq 'fix-first: delegate the required correction' "$skill"; then fail "skill retains unconditional fix-first delegation"; fi
 grep -Fq 'Every mode, including `solo`, handles a discovered defect' "$skill" || fail "skill does not make defect handling uniform"
@@ -631,7 +638,7 @@ pass "route, acceptance, impact-surface, review, and correction contracts"
 
 for phrase in \
   'agent_type: sol_advisor_luna_implementer' \
-  'agent_type: sol_advisor_terra_implementer' \
+  'agent_type: sol_advisor_sol_implementer' \
   'agent_type: sol_advisor_sol_reviewer' \
   'fork_turns: none' \
   'runtime_inspector' \
@@ -721,6 +728,16 @@ all_test_output=$(PYTHONDONTWRITEBYTECODE=1 python3 "$strict_test_runner" --test
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_rejects_required_test_missing_from_dynamic_discovery \
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_rejects_skipped_required_test_instead_of_accepting_ok_skipped \
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_rejects_expected_failure_required_test \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_clean_checkout_fixtures_initialize_their_own_parent \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_failure_preserves_original_traceback_and_output \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_previous_reviewer_migrates_but_custom_edits_are_preserved \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_fixture_parent_preserves_existing_content_and_refuses_aliases \
+  --required-id test_full_protocol.ReviewerCounterexampleTests.test_documented_design_outputs_are_accepted_without_product_authority \
+  --required-id test_behavioral_fixtures.BehavioralFixtureTests.test_full_trace_requires_complete_ordered_delivery_chain \
+  --required-id test_behavioral_fixtures.BehavioralFixtureTests.test_full_trace_binds_stage_work_attempt_candidate_and_latest_review \
+  --required-id test_behavioral_fixtures.BehavioralFixtureTests.test_full_trace_accepts_fresh_correction_and_multiple_stages \
+  --required-id test_behavioral_fixtures.BehavioralFixtureTests.test_full_trace_malformed_input_is_rejected_without_crashing \
+  --required-id test_behavioral_fixtures.BehavioralFixtureTests.test_full_trace_rejects_reusing_context_for_changed_candidate \
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_rejects_skip_even_when_another_required_test_passes 2>&1) || {
   printf '%s\n' "$all_test_output" >&2
   fail "full Python suite did not execute every required mechanism successfully"
@@ -737,4 +754,4 @@ sh -n "$runtime_inspector"
 sh -n "$script_dir/verify.sh"
 pass "shell syntax"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor v0.8.0 full-v2 checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor v0.8.1 full-v2 checks completed in $tmp_dir"

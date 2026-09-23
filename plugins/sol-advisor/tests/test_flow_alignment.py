@@ -113,7 +113,7 @@ class FlowAlignmentProtocolTests(unittest.TestCase):
         identity = {"candidate_id": "sha256:" + "2" * 64, "manifest_hash": "sha256:" + "3" * 64, "verify_receipt_digest": "sha256:" + "4" * 64}
         attestation = {
             "schema": "SA-REVIEW-ATTESTATION-2", "mode": "behavioral-window",
-            "reviewer": {"thread_id": "sol", "context_id": "ctx", "context_source": "observed-context", "role": "sol_advisor_sol_reviewer", "model": "gpt-5.6-sol", "effort": "high", "runtime_receipt_digest": "sha256:" + "5" * 64},
+            "reviewer": {"thread_id": "sol", "context_id": "ctx", "context_source": "observed-context", "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh", "runtime_receipt_digest": "sha256:" + "5" * 64},
             "observed": {"sandbox_policy_type": "danger-full-access", "permission_profile": "disabled", "prompt_digest": contract["review_policy"]["behavioral_read_only_prompt_digest"]},
             "windows": [{"candidate_before": identity, "candidate_after": identity, "task_tree_before": "sha256:" + "6" * 64, "task_tree_after": "sha256:" + "6" * 64}],
         }

@@ -8,10 +8,10 @@ delegation, verification, and acceptance.
 
 You need a current Codex CLI or ChatGPT desktop app with plugins enabled, native
 custom-agent support, jq, and Python 3. The candidate behavior suite is verified on Python
-3.12 and 3.14; other Python versions are not claimed here. Luna / Max, Terra / High, or
-Reviewer Sol / High access is needed only when that auxiliary is used.
+3.12 and 3.14; other Python versions are not claimed here. Luna / XHigh, Sol implementer / High, or
+Sol reviewer / XHigh access is needed only when that auxiliary is used.
 
-This source tree describes the unreleased `0.8.0` full-v2 protocol. Installing from a
+This source tree describes the `0.8.1` full-v2 protocol. Installing from a
 published marketplace ref may still load an older version; verify the installed manifest
 and start a new task before evaluating full-v2 behavior.
 
@@ -37,20 +37,20 @@ skill and its linked guidance first; declare the selective route before other ta
 | Mode | Use it when | Delivery |
 |---|---|---|
 | `solo` | Default; risk is contained. | Root plans, implements, tests, and self-reviews. |
-| `delegate` | A complete spec is better executed by one implementer. | Luna / Max for bounded work, or Terra / High for judgment-heavy or high-risk work; root verifies. |
+| `delegate` | A complete spec is better executed by one implementer. | Luna / XHigh for bounded work, or Sol implementer / High for judgment-heavy or high-risk work; root verifies. |
 | `audit` | Independent final scrutiny matters more than delegation. | Root implements; a fresh read-only Reviewer inspects the diff. |
-| `full` | Explicit broad or high-risk exception. | Root schedules independent peer Terra work when useful, tools assemble exact deliveries, and one fresh read-only Sol reviewer checks the real combined candidate. |
+| `full` | Explicit broad or high-risk exception. | Root schedules independent peer Sol implementer work when useful, tools assemble exact deliveries, and one fresh read-only Sol reviewer checks the real combined candidate. |
 
 Solo is the default and non-full behavior is unchanged. One auxiliary remains the default
-maximum outside `full`; full is the explicit exception and may use multiple peer Terra
+maximum outside `full`; full is the explicit exception and may use multiple peer Sol implementer
 instances only for genuinely independent work. The root declares a `SELECTIVE ROUTE` with the mode and concise risk
 rationale before the first task tool call. It can escalate only when newly
 observed risk justifies it and never silently downgrades. You do not need to select or
 manage a lane.
 
 Auxiliary work substitutes for root work; it does not duplicate it. In `solo`, `delegate`,
-and `audit`, existing Root verification responsibilities remain. In `full`, each Terra owns
-its own implementation, tests, self-review and delivery; there is no lead/integrator Terra.
+and `audit`, existing Root verification responsibilities remain. In `full`, each Sol implementer owns
+its own implementation, tests, self-review and delivery; there is no lead/integrator Sol implementer.
 The Root plans, schedules, resolves interface or authority conflicts, binds the mechanically
 combined candidate and makes final acceptance without a default duplicate technical rerun.
 The same fresh Sol context performs critical checks and then the remaining stage review.
@@ -103,7 +103,7 @@ plugin_dir="$(codex plugin add sol-advisor@sol-advisor --json | jq -er '.install
 ~~~
 
 The installer automatically migrates only exact known historical templates, including the
-shipped 0.7.3 Terra and Reviewer bytes. User-modified, symlinked, nonregular or otherwise
+shipped 0.7.3 old-name implementer and Reviewer bytes. User-modified, symlinked, nonregular or otherwise
 unknown destinations are refused without partial replacement. Use `--check` for a no-write
 preflight. Roll back by reinstalling the prior plugin version and its exact companion roles,
 then start another new task; existing tasks do not hot-reload role or Skill changes.

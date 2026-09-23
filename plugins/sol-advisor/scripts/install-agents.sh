@@ -8,18 +8,18 @@ usage() {
 Usage: install-agents.sh [--target-dir PATH] [--check] [--check-role ROLE ...]
 
 Install Sol Advisor's three current custom-agent templates into the target directory.
-Normal mode also migrates only exact byte-matching historical templates where the
-role remains the same. It never overwrites a modified, nonregular, or symlinked
-destination.
+Normal mode migrates exact byte-matching historical templates and retires an exact
+old-name implementer file. It never overwrites or removes a modified, nonregular,
+or symlinked destination.
 
 Without --target-dir, the target is "$CODEX_HOME/agents" when CODEX_HOME is already
 set, otherwise "$HOME/.codex/agents".
 
 Options:
   --target-dir PATH  Explicit destination directory (absolute or relative).
-  --check            Verify that Luna, Terra, and Reviewer match exactly; do not create,
+  --check            Verify that Luna, Sol implementer, and Reviewer match exactly; do not create,
                      replace, or remove anything.
-  --check-role ROLE  Verify only ROLE (luna, terra, or reviewer); repeatable and
+  --check-role ROLE  Verify only ROLE (luna, implementer, or reviewer); repeatable and
                      implies --check. The legacy sol alias means reviewer. Unknown
                      or missing roles fail without mutation.
   --help             Show this help text.
@@ -61,6 +61,8 @@ classify_current_or_legacy() {
   legacy_digest=$3
   legacy_digest_alt=${4-}
   legacy_digest_third=${5-}
+  legacy_digest_fourth=${6-}
+  legacy_digest_fifth=${7-}
 
   if ! path_exists "$destination"; then
     printf '%s\n' missing
@@ -72,7 +74,8 @@ classify_current_or_legacy() {
     digest=$(sha256_file "$destination")
     if [ -n "$digest" ] && {
       [ "$digest" = "$legacy_digest" ] || [ "$digest" = "$legacy_digest_alt" ] ||
-      [ "$digest" = "$legacy_digest_third" ]
+      [ "$digest" = "$legacy_digest_third" ] || [ "$digest" = "$legacy_digest_fourth" ] ||
+      [ "$digest" = "$legacy_digest_fifth" ]
     }; then
       printf '%s\n' legacy
     elif [ -z "$digest" ]; then
@@ -168,11 +171,11 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     --check-role)
-      [ "$#" -ge 2 ] || fail "--check-role requires a role: luna, terra, or reviewer (legacy: sol)."
+      [ "$#" -ge 2 ] || fail "--check-role requires a role: luna, implementer, or reviewer (legacy: sol)."
       case "$2" in
-        luna|terra) role=$2 ;;
+        luna|implementer) role=$2 ;;
         reviewer|sol) role=reviewer ;;
-        *) fail "unknown --check-role '$2'; expected luna, terra, or reviewer (legacy: sol)." ;;
+        *) fail "unknown --check-role '$2'; expected luna, implementer, or reviewer (legacy: sol)." ;;
       esac
       check_only=1
       check_roles=$check_roles$role,
@@ -206,13 +209,15 @@ case "$target_dir" in
   /|//) fail "refusing to use the filesystem root as an agent target directory." ;;
 esac
 
-terra_file=sol-advisor-terra-implementer.toml
+implementer_file=sol-advisor-sol-implementer.toml
+retired_implementer_file=sol-advisor-terra-implementer.toml
 luna_file=sol-advisor-luna-implementer.toml
 reviewer_file=sol-advisor-sol-reviewer.toml
-terra_template=$template_dir/$terra_file
+implementer_template=$template_dir/$implementer_file
 luna_template=$template_dir/$luna_file
 reviewer_template=$template_dir/$reviewer_file
-terra_destination=$target_dir/$terra_file
+implementer_destination=$target_dir/$implementer_file
+retired_implementer_destination=$target_dir/$retired_implementer_file
 luna_destination=$target_dir/$luna_file
 reviewer_destination=$target_dir/$reviewer_file
 
@@ -227,6 +232,10 @@ legacy_terra_v050_sha256=dc329fe87f6f6610c13157ec16432f91c79cf5a541ee3e7448f6afb
 # Exact 0.7.3 profiles replaced by the full-v2 role cores.
 legacy_terra_v073_sha256=77ed2f36bb149da5d9032230c3d6f5e5cd56b059b3fa5f59085249bba06e1f3a
 legacy_reviewer_v073_sha256=0333acf0ef562bcfebd06009ac09bd1dd8cbc04c4cf28e08e9e049bd8bf202d2
+legacy_reviewer_v080_sha256=579aee6f9f82e84b3a3bbd89e05fcb139051a7232cd20c43ab51c0642a4af0da
+# Exact old-name v0.8.0 and pre-rename GPT-6 implementer templates.
+legacy_terra_v080_sha256=65ed1207a864efc7265212bcaca0dd3d59054515070f9e328986767c4fce2ee6
+legacy_terra_gpt6_sha256=678f8a6076a8ff1e640b69b48ab876f04dccb98ef8e92fe534ffb2c2b8111b51
 
 preflight_failed=0
 if path_exists "$target_dir"; then
@@ -243,35 +252,42 @@ if [ "$check_only" -eq 1 ]; then
     [ "$luna_state" = current ] ||
       report_preflight_error "Luna template is $luna_state, not the current exact file: $luna_destination"
   fi
-  if role_selected terra; then
-    [ -f "$terra_template" ] && [ ! -L "$terra_template" ] ||
-      report_preflight_error "shipped Terra template is missing or not a regular file: $terra_template"
-    terra_state=$(classify_current_or_legacy "$terra_destination" "$terra_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256")
-    [ "$terra_state" = current ] ||
-      report_preflight_error "Terra template is $terra_state, not the current exact file: $terra_destination"
+  if role_selected implementer; then
+    [ -f "$implementer_template" ] && [ ! -L "$implementer_template" ] ||
+      report_preflight_error "shipped Sol implementer template is missing or not a regular file: $implementer_template"
+    implementer_state=$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256")
+    [ "$implementer_state" = current ] ||
+      report_preflight_error "Sol implementer template is $implementer_state, not the current exact file: $implementer_destination"
+    path_exists "$retired_implementer_destination" &&
+      report_preflight_error "retired implementer file is still present: $retired_implementer_destination"
   fi
   if role_selected reviewer; then
     [ -f "$reviewer_template" ] && [ ! -L "$reviewer_template" ] ||
       report_preflight_error "shipped Reviewer template is missing or not a regular file: $reviewer_template"
-    reviewer_state=$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" '' '')
+    reviewer_state=$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" '')
     [ "$reviewer_state" = current ] ||
       report_preflight_error "Reviewer template is $reviewer_state, not the current exact file: $reviewer_destination"
   fi
 else
-  for template in "$luna_template" "$terra_template" "$reviewer_template"; do
+  for template in "$luna_template" "$implementer_template" "$reviewer_template"; do
     [ -f "$template" ] && [ ! -L "$template" ] ||
       fail "shipped template is missing or not a regular file: $template"
   done
   luna_state=$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")
-  terra_state=$(classify_current_or_legacy "$terra_destination" "$terra_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256")
-  reviewer_state=$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" '' '')
+  implementer_state=$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256")
+  retired_implementer_state=$(classify_current_or_legacy "$retired_implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_terra_v080_sha256" "$legacy_terra_gpt6_sha256")
+  reviewer_state=$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" '')
   case "$luna_state" in
     current|legacy|missing) ;;
     *) report_preflight_error "Luna destination is $luna_state and will not be replaced: $luna_destination" ;;
   esac
-  case "$terra_state" in
+  case "$implementer_state" in
     current|legacy|missing) ;;
-    *) report_preflight_error "Terra destination is $terra_state and will not be replaced: $terra_destination" ;;
+    *) report_preflight_error "Sol implementer destination is $implementer_state and will not be replaced: $implementer_destination" ;;
+  esac
+  case "$retired_implementer_state" in
+    missing|current|legacy) ;;
+    *) report_preflight_error "retired implementer file is $retired_implementer_state and will not be removed: $retired_implementer_destination" ;;
   esac
   case "$reviewer_state" in
     current|legacy|missing) ;;
@@ -285,7 +301,7 @@ if [ "$check_only" -eq 1 ]; then
   if [ -n "$check_roles" ]; then
     printf '%s\n' "CHECK PASSED: selected role templates exactly match $template_dir."
   else
-    printf '%s\n' "CHECK PASSED: Luna, Terra, and Reviewer exactly match $template_dir."
+    printf '%s\n' "CHECK PASSED: Luna, Sol implementer, and Reviewer exactly match $template_dir."
   fi
   exit 0
 fi
@@ -297,8 +313,9 @@ fi
   fail "target directory changed after preflight: $target_dir"
 
 same_state Luna "$luna_state" "$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")"
-same_state Terra "$terra_state" "$(classify_current_or_legacy "$terra_destination" "$terra_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256")"
-same_state Reviewer "$reviewer_state" "$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" '' '')"
+same_state Sol-implementer "$implementer_state" "$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256")"
+same_state Retired-implementer "$retired_implementer_state" "$(classify_current_or_legacy "$retired_implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_terra_v080_sha256" "$legacy_terra_gpt6_sha256")"
+same_state Reviewer "$reviewer_state" "$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" '')"
 
 case "$luna_state" in
   missing) install_missing "$luna_template" "$luna_destination" ;;
@@ -306,23 +323,32 @@ case "$luna_state" in
   current) printf '%s\n' "ALREADY CURRENT: $luna_destination" ;;
 esac
 
-case "$terra_state" in
-  missing) install_missing "$terra_template" "$terra_destination" ;;
-  legacy) replace_legacy_role Terra "$terra_template" "$terra_destination" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" ;;
-  current) printf '%s\n' "ALREADY CURRENT: $terra_destination" ;;
+case "$implementer_state" in
+  missing) install_missing "$implementer_template" "$implementer_destination" ;;
+  legacy) replace_legacy_role Sol-implementer "$implementer_template" "$implementer_destination" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" ;;
+  current) printf '%s\n' "ALREADY CURRENT: $implementer_destination" ;;
+esac
+
+case "$retired_implementer_state" in
+  current|legacy)
+    same_state Retired-implementer "$retired_implementer_state" "$(classify_current_or_legacy "$retired_implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_terra_v080_sha256" "$legacy_terra_gpt6_sha256")"
+    rm -f "$retired_implementer_destination" || fail "could not retire old-name implementer file: $retired_implementer_destination"
+    printf '%s\n' "RETIRED: $retired_implementer_destination"
+    ;;
 esac
 
 case "$reviewer_state" in
   missing) install_missing "$reviewer_template" "$reviewer_destination" ;;
-  legacy) replace_legacy_role Reviewer "$reviewer_template" "$reviewer_destination" "$legacy_reviewer_v073_sha256" '' '' ;;
+  legacy) replace_legacy_role Reviewer "$reviewer_template" "$reviewer_destination" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" '' ;;
   current) printf '%s\n' "ALREADY CURRENT: $reviewer_destination" ;;
 esac
 
 [ "$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256")" = current ] ||
   fail "post-install exactness check failed: $luna_destination"
-[ "$(classify_current_or_legacy "$terra_destination" "$terra_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256")" = current ] ||
-  fail "post-install exactness check failed: $terra_destination"
-[ "$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" '' '')" = current ] ||
+[ "$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256")" = current ] ||
+  fail "post-install exactness check failed: $implementer_destination"
+[ "$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" '')" = current ] ||
   fail "post-install exactness check failed: $reviewer_destination"
+path_exists "$retired_implementer_destination" && fail "retired implementer file remains: $retired_implementer_destination"
 
-printf '%s\n' "INSTALL PASSED: Luna, Terra, and Reviewer exactly match $template_dir."
+printf '%s\n' "INSTALL PASSED: Luna, Sol implementer, and Reviewer exactly match $template_dir."

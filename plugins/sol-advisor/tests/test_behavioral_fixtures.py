@@ -6,6 +6,7 @@ counterexamples discriminating; root separately inspects/reruns agent outputs.
 from __future__ import annotations
 
 import importlib.util
+import copy
 import json
 from pathlib import Path
 import shutil
@@ -28,11 +29,99 @@ def load(case: str, filename: str):
 
 
 class BehavioralFixtureTests(unittest.TestCase):
+    def full_trace(self):
+        return {
+            "route": "full", "stages": [{"stage_key": "s1", "work_keys": ["core"]}],
+            "events": [dict(event, stage_key="s1", attempt_id="a1") for event in [
+                {"type": "terra-start", "role": "peer", "work_key": "core"},
+                {"type": "delivery", "work_key": "core", "delivery_id": "D1", "self_test": True, "self_review": True, "writes_stopped": True},
+                {"type": "assemble", "candidate_id": "C1", "selected_delivery_ids": ["D1"], "semantic_merge": False},
+                {"type": "sol-review", "actor": "sol", "context_id": "R1", "candidate_id": "C1", "status": "valid", "critical": "pass", "verdict": "ship"},
+                {"type": "final-accept", "candidate_id": "C1", "fresh_verify_match": True},
+            ]],
+        }
+
+    def test_full_trace_requires_complete_ordered_delivery_chain(self):
+        grader = load("full-v2", "grader.py")
+        valid = self.full_trace()
+        self.assertTrue(grader.grade(valid)["passed"])
+        cases = {"empty": [], "review-only": valid["events"][-2:],
+                 "accept-before-review": valid["events"][:3] + valid["events"][:2:-1]}
+        for label, events in cases.items():
+            with self.subTest(case=label):
+                self.assertFalse(grader.grade(dict(valid, events=events))["passed"])
+        partial = grader.grade(dict(valid, events=valid["events"][:2]))
+        self.assertEqual(partial["status"], "incomplete")
+        self.assertTrue(partial["compliant"])
+        self.assertFalse(partial["passed"])
+
+    def test_full_trace_binds_stage_work_attempt_candidate_and_latest_review(self):
+        grader = load("full-v2", "grader.py")
+        mutations = [(1, "work_key", "other"), (1, "attempt_id", "other"),
+                     (2, "selected_delivery_ids", ["D1", "D1"]),
+                     (3, "candidate_id", "other"), (3, "stage_key", "other"),
+                     (3, "critical", "fail"), (4, "attempt_id", "other")]
+        for index, key, value in mutations:
+            case = self.full_trace()
+            case["events"][index][key] = value
+            with self.subTest(index=index, key=key):
+                self.assertFalse(grader.grade(case)["passed"])
+        case = self.full_trace()
+        case["events"].insert(-1, dict(case["events"][-2], verdict="fix-first", critical="fail"))
+        self.assertFalse(grader.grade(case)["passed"])
+
+    def test_full_trace_accepts_fresh_correction_and_multiple_stages(self):
+        grader = load("full-v2", "grader.py")
+        case = self.full_trace()
+        case["events"] = case["events"][:-1]
+        case["events"][-1].update(verdict="fix-first", critical="fail")
+        corrected = copy.deepcopy(self.full_trace()["events"])
+        for event in corrected:
+            event["attempt_id"] = "a2"
+            if "delivery_id" in event: event["delivery_id"] = "D2"
+            if "selected_delivery_ids" in event: event["selected_delivery_ids"] = ["D2"]
+            if "candidate_id" in event: event["candidate_id"] = "C2"
+            if "context_id" in event:
+                event.update(context_id="R2", completed_prior_remaining_scope=True)
+        case["events"].extend(corrected)
+        self.assertTrue(grader.grade(case)["passed"])
+        reused = copy.deepcopy(case)
+        reused["events"][-2]["context_id"] = "R1"
+        self.assertFalse(grader.grade(reused)["passed"])
+        case["stages"].append({"stage_key": "s2", "work_keys": ["core"]})
+        self.assertFalse(grader.grade(case)["passed"])
+        second = copy.deepcopy(self.full_trace()["events"])
+        for event in second:
+            event["stage_key"] = "s2"
+            if "delivery_id" in event: event["delivery_id"] = "D3"
+            if "selected_delivery_ids" in event: event["selected_delivery_ids"] = ["D3"]
+            if "candidate_id" in event: event["candidate_id"] = "C3"
+            if "context_id" in event: event["context_id"] = "R3"
+        case["events"].extend(second)
+        self.assertTrue(grader.grade(case)["passed"])
+
+    def test_full_trace_malformed_input_is_rejected_without_crashing(self):
+        grader = load("full-v2", "grader.py")
+        for event in [None, [], {"type": "assemble", "selected_delivery_ids": [{}]}]:
+            with self.subTest(event=event):
+                self.assertFalse(grader.grade(dict(self.full_trace(), events=[event]))["passed"])
+
+    def test_full_trace_rejects_reusing_context_for_changed_candidate(self):
+        case = self.full_trace()
+        previous = copy.deepcopy(case["events"][:-1])
+        for event in previous:
+            event["attempt_id"] = "old"
+            if "delivery_id" in event: event["delivery_id"] = "D-old"
+            if "selected_delivery_ids" in event: event["selected_delivery_ids"] = ["D-old"]
+            if "candidate_id" in event: event["candidate_id"] = "C-old"
+        case["events"] = previous + case["events"]
+        self.assertFalse(load("full-v2", "grader.py").grade(case)["passed"])
+
     def test_full_v2_usage_covers_required_examples_without_inventing_recovery_cli(self):
         usage = (REPOSITORY / "docs" / "full-v2" / "USAGE.md").read_text(encoding="utf-8")
         required_examples = {
-            "### One Terra, one stage": "workflow.py receive",
-            "### Two independent peer Terra deliveries": "workflow.py assemble",
+            "### One Sol implementer, one stage": "workflow.py receive",
+            "### Two independent peer Sol implementer deliveries": "workflow.py assemble",
             "### High-risk design challenge before implementation": "record-design-review",
             "### Interrupted mutation and recovery": "workflow.py status",
         }

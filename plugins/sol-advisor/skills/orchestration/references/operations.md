@@ -6,7 +6,7 @@ verification. Route selection and root responsibilities belong to [SKILL.md](../
 worker and reviewer prompts belong to [role-contracts.md](role-contracts.md).
 
 For a declared `full` route, use [full-workflow.md](full-workflow.md) before task-contract
-publication. Root plans and later binds/verifies the candidate, Terra independently delivers
+publication. Root plans and later binds/verifies the candidate, Sol implementer independently delivers
 owned work, and fresh Sol performs critical-then-complete read-only review. Root does not
 add a default duplicate technical rerun. No protocol rule authorizes role substitution,
 install, credentials, business networking, publication, or push.
@@ -17,9 +17,9 @@ The installed TOMLs are the source of truth:
 
 | Role type | Model | Effort | Use |
 |---|---|---|---|
-| sol_advisor_luna_implementer | gpt-5.6-luna | max | Bounded implementation |
-| sol_advisor_terra_implementer | gpt-5.6-terra | high | Judgment-heavy or high-risk implementation |
-| sol_advisor_sol_reviewer | gpt-5.6-sol | high | Fresh review; requests read-only sandbox |
+| sol_advisor_luna_implementer | gpt-6-luna | xhigh | Bounded implementation |
+| sol_advisor_sol_implementer | gpt-6-sol | high | Judgment-heavy or high-risk implementation |
+| sol_advisor_sol_reviewer | gpt-6-sol | xhigh | Fresh review; requests read-only sandbox |
 
 Use the selected exact role with a fresh context:
 
@@ -29,7 +29,7 @@ fork_turns: none
 ~~~
 
 ~~~text
-agent_type: sol_advisor_terra_implementer
+agent_type: sol_advisor_sol_implementer
 fork_turns: none
 ~~~
 
@@ -62,7 +62,7 @@ sh "$installer" --check
 ~~~
 
 The installer is fail-closed and post-install checks exactness. It migrates only
-byte-exact historical Luna/Terra templates; modified, unsafe, nonregular, symlinked,
+byte-exact historical Luna and old-name implementer templates; modified, unsafe, nonregular, symlinked,
 or conflicting destinations remain refusals, with all mutation preflighted.
 
 For task-scoped preflight, non-mutatingly check only the role about to be spawned:
@@ -70,7 +70,7 @@ For task-scoped preflight, non-mutatingly check only the role about to be spawne
 | Stage | Companion check |
 |---|---|
 | Before Luna | `--check-role luna` |
-| Before Terra | `--check-role terra` |
+| Before Sol implementer | `--check-role implementer` |
 | Before Reviewer | `--check-role reviewer` |
 
 `--check-role` is repeatable for compatibility, but route stages use one active role.

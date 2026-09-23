@@ -67,7 +67,7 @@ class StagedFixture(WorkflowFixture):
   assert e['result']=='pass',e
   return review.record_challenge_evidence(self.task,relationship=ctx,request=q,evidence=e)['context']
  def reviewed(self,ctx,stage,late,window=None):
-  runtime={'thread_id':'synthetic-sol-'+stage,'agent_role':'sol_advisor_sol_reviewer','model':'gpt-5.6-sol','effort':'high','sandbox_policy_type':'danger-full-access' if window else 'read-only','permission_profile_type':'disabled','prompt_digest':self.contract['review_policy']['behavioral_read_only_prompt_digest']}
+  runtime={'thread_id':'synthetic-sol-'+stage,'agent_role':'sol_advisor_sol_reviewer','model':'gpt-6-sol','effort':'xhigh','sandbox_policy_type':'danger-full-access' if window else 'read-only','permission_profile_type':'disabled','prompt_digest':self.contract['review_policy']['behavioral_read_only_prompt_digest']}
   v={'record_type':'V','verdict_id':'V-'+stage,'contract_digest':self.contract['contract_digest'],'status':'valid','verdict':'ship','packet_id':ctx.packet['packet_id'],'candidate_bridge_id':ctx.candidate_bridge['bridge_id'],'challenge_receipt_id':ctx.challenge_receipt['challenge_receipt_id'],'rejection_closure':[],'rejection_dispositions':{},'open_rejections':[],'coverage_complete':True,'pre_ship_evidence_ids':[e['evidence_id'] for e in late],'reviewed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'review_sequence':self.version()}
   return review.record_review(self.task,op_id='review-'+stage,expected_state_version=self.version(),relationship=ctx,verdict=v,reviewer_runtime_receipt=runtime,pre_ship_evidence=late,behavioral_window_id=window)['context']
  def accept(self,ctx,stage,crash_after_cas=False):
@@ -105,7 +105,7 @@ class FlowIntegrationTests(unittest.TestCase):
   with self.assertRaises(w.WorkflowError):f.reviewed(ctx,'s1',[late])
  def test_corrected_p2_review_rejects_reused_predecessor_context_through_record_review(self):
   f=self.fixture();old=f.challenge(f.packet(f.assemble('s1',{'a':'D-a-1','b':'D-b-1'}),'s1'),'s1')
-  runtime={'thread_id':'synthetic-sol-old','context_id':'synthetic-context-old','agent_role':'sol_advisor_sol_reviewer','model':'gpt-5.6-sol','effort':'high','sandbox_policy_type':'read-only','permission_profile_type':'disabled','prompt_digest':f.contract['review_policy']['behavioral_read_only_prompt_digest']}
+  runtime={'thread_id':'synthetic-sol-old','context_id':'synthetic-context-old','agent_role':'sol_advisor_sol_reviewer','model':'gpt-6-sol','effort':'xhigh','sandbox_policy_type':'read-only','permission_profile_type':'disabled','prompt_digest':f.contract['review_policy']['behavioral_read_only_prompt_digest']}
   fix={'record_type':'V','verdict_id':'V-fix','contract_digest':f.contract['contract_digest'],'status':'valid','verdict':'fix-first','packet_id':old.packet['packet_id'],'candidate_bridge_id':old.candidate_bridge['bridge_id'],'challenge_receipt_id':old.challenge_receipt['challenge_receipt_id'],'rejection_closure':[],'rejection_dispositions':{},'coverage_complete':False,'blocking_findings':[{'finding_id':'synthetic-finding'}]}
   old=review.record_review(f.task,op_id='review-fix',expected_state_version=f.version(),relationship=old,verdict=fix,reviewer_runtime_receipt=runtime)['context']
   f.receive('a',2,expected=f.version(),content='c1\n')
@@ -191,7 +191,7 @@ class FlowIntegrationTests(unittest.TestCase):
   with self.assertRaises(p.RelationshipValidationError):p.validate_acceptance(acceptance,final_candidate_evidence=bad,**kwargs)
 
  def test_p2_design_review_is_separate_and_implementation_needs_fresh_context(self):
-  f=self.fixture();runtime={'thread_id':'synthetic-sol-s1','agent_role':'sol_advisor_sol_reviewer','model':'gpt-5.6-sol','effort':'high','sandbox_policy_type':'read-only','permission_profile_type':'disabled','prompt_digest':f.contract['review_policy']['behavioral_read_only_prompt_digest']}
+  f=self.fixture();runtime={'thread_id':'synthetic-sol-s1','agent_role':'sol_advisor_sol_reviewer','model':'gpt-6-sol','effort':'xhigh','sandbox_policy_type':'read-only','permission_profile_type':'disabled','prompt_digest':f.contract['review_policy']['behavioral_read_only_prompt_digest']}
   dr={'record_type':'DR','review_id':'design','status':'valid','design_verdict':'design-approved','contract_digest':f.contract['contract_digest']}
   result=review.record_design_review(f.task,review=dr,reviewer_runtime_receipt=runtime,design_input={'mechanism':'exact patches'})
   self.assertEqual(result['design_verdict'],'design-approved');self.assertIsNone(w.read_task(f.task)['state']['current_ids']['acceptance'])
@@ -201,7 +201,7 @@ class FlowIntegrationTests(unittest.TestCase):
  def test_p2_behavioral_design_observation_needs_no_product_candidate(self):
   f=StagedFixture();self.addCleanup(f.cleanup);design={'mechanism':'pre-implementation probe'}
   w.begin_reviewer_window(f.task,window_id='design',candidate_identity={'design_input_digest':p.canonical_digest(design)})
-  runtime={'thread_id':'design-sol','agent_role':'sol_advisor_sol_reviewer','model':'gpt-5.6-sol','effort':'high','sandbox_policy_type':'danger-full-access','permission_profile_type':'disabled','prompt_digest':f.contract['review_policy']['behavioral_read_only_prompt_digest']}
+  runtime={'thread_id':'design-sol','agent_role':'sol_advisor_sol_reviewer','model':'gpt-6-sol','effort':'xhigh','sandbox_policy_type':'danger-full-access','permission_profile_type':'disabled','prompt_digest':f.contract['review_policy']['behavioral_read_only_prompt_digest']}
   result=review.record_design_review(f.task,review={'record_type':'DR','review_id':'design','status':'valid','design_verdict':'design-approved','contract_digest':f.contract['contract_digest']},reviewer_runtime_receipt=runtime,design_input=design,behavioral_window_id='design')
   self.assertEqual(result['design_verdict'],'design-approved');self.assertIsNone(w.read_task(f.task)['state']['current_ids']['candidate_binding'])
  def test_packet_cannot_be_relabelled_as_future_stage(self):

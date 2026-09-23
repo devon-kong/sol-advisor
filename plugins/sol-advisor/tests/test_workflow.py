@@ -7,7 +7,7 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
+from fixture_support import fixture_directory
 import threading
 from pathlib import Path
 from unittest import mock
@@ -38,7 +38,7 @@ def write_json(path: Path, value: object) -> None:
 
 class WorkflowFixture:
     def __init__(self, *, overlapping: bool = False, staged: bool = False) -> None:
-        self.temp = tempfile.TemporaryDirectory(dir=TEST_ARTIFACTS)
+        self.temp = fixture_directory(TEST_ARTIFACTS)
         self.root = Path(self.temp.name)
         self.baseline = self.root / "baseline"
         self.baseline.mkdir()
@@ -147,8 +147,8 @@ class WorkflowFixture:
         material["material_digest"] = digest(material)
         runtime = {
             "thread_id": f"thread-{work_key}",
-            "agent_role": "sol_advisor_terra_implementer",
-            "model": "gpt-5.6-terra",
+            "agent_role": "sol_advisor_sol_implementer",
+            "model": "gpt-6-sol",
             "effort": "high",
             "task_id": "fixture-task",
             "stage_key": self.contract["work_items"][work_key].get("stage_key", "p2"),
@@ -528,7 +528,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(workflow.read_task(f.task)["state"]["version"], 1)
 
         runtime = json.loads(paths["runtime"].read_text(encoding="utf-8"))
-        runtime["model"] = "gpt-5.6-sol"
+        runtime["model"] = "gpt-5.6-terra"
         write_json(paths["runtime"], runtime)
         with self.assertRaises(workflow.WorkflowError) as caught:
             workflow.receive_delivery(

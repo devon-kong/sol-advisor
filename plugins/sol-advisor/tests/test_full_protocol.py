@@ -4,9 +4,10 @@ import importlib
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
-import tempfile
+from fixture_support import fixture_directory
 from dataclasses import replace
 from pathlib import Path
 import unittest
@@ -161,7 +162,7 @@ class FullProtocolTests(unittest.TestCase):
             "schema": "SA-REVIEW-ATTESTATION-1", "mode": "hard-read-only",
             "reviewer": {
                 "thread_id": "sol-1", "context_id": "sol-context-1", "context_source": "observed-context",
-                "role": "sol_advisor_sol_reviewer", "model": "gpt-5.6-sol", "effort": "high",
+                "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh",
                 "runtime_receipt_digest": "sha256:" + "1" * 64,
             },
             "observed": {"sandbox_policy_type": "read-only", "permission_profile": "disabled", "prompt_digest": "sha256:" + "2" * 64},
@@ -187,7 +188,7 @@ class FullProtocolTests(unittest.TestCase):
         candidate_identity = {"candidate_id": "sha256:" + "4" * 64, "manifest_hash": "sha256:" + "5" * 64, "verify_receipt_digest": "sha256:" + "6" * 64}
         attestation = {
             "schema": "SA-REVIEW-ATTESTATION-1", "mode": "behavioral-window",
-            "reviewer": {"thread_id": "sol-1", "context_id": "sol-1", "context_source": "verified-thread-id", "role": "sol_advisor_sol_reviewer", "model": "gpt-5.6-sol", "effort": "high", "runtime_receipt_digest": "sha256:" + "7" * 64},
+            "reviewer": {"thread_id": "sol-1", "context_id": "sol-1", "context_source": "verified-thread-id", "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh", "runtime_receipt_digest": "sha256:" + "7" * 64},
             "observed": {"sandbox_policy_type": "danger-full-access", "permission_profile": "disabled", "prompt_digest": prompt},
             "windows": [{"candidate_before": candidate_identity, "candidate_after": candidate_identity, "task_tree_before": "sha256:" + "8" * 64, "task_tree_after": "sha256:" + "8" * 64}],
         }
@@ -475,7 +476,7 @@ class FullProtocolTests(unittest.TestCase):
         receipt = challenge_receipt(request, evidence)
         attestation = {
             "context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer",
-            "model": "gpt-5.6-sol", "effort": "high", "observed_attestation": {"observed": True},
+            "model": "gpt-6-sol", "effort": "xhigh", "observed_attestation": {"observed": True},
         }
         ship["observed_attestation_digest"] = digest(attestation)
         context = f.context(
@@ -625,7 +626,7 @@ class ReviewerCounterexampleTests(unittest.TestCase):
         def context_for(status: str, *, verdict_override=None, attestation_override=None):
             attestation = attestation_override or {
                 "context_id": "context-unavailable", "thread_id": "thread-unavailable",
-                "role": "sol_advisor_sol_reviewer", "model": "gpt-5.6-sol", "effort": "high",
+                "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh",
                 "observed_attestation": {"observed": True},
             }
             verdict = verdict_override or {
@@ -650,7 +651,7 @@ class ReviewerCounterexampleTests(unittest.TestCase):
         with self.assertRaises(protocol.RelationshipValidationError):
             protocol.validate_record_review_transition(before, missing_attestation, context=f.context(verdict=missing_attestation, observed_attestation=context.observed_attestation))
 
-        wrong_reviewer = dict(context.observed_attestation, role="sol_advisor_terra_implementer")
+        wrong_reviewer = dict(context.observed_attestation, role="sol_advisor_sol_implementer")
         wrong_reviewer["observed_attestation"] = {"observed": True}
         wrong_verdict, _ = context_for(
             "unavailable", attestation_override=wrong_reviewer,
@@ -888,6 +889,31 @@ class ReviewerCounterexampleTests(unittest.TestCase):
             self.assertIn("valid => VERDICT: ship | fix-first | rethink", text)
             self.assertIn("unavailable | invalid => VERDICT: null", text)
 
+    def test_documented_design_outputs_are_accepted_without_product_authority(self) -> None:
+        """Consume each advertised design verdict through the real DR validator."""
+        root = Path(__file__).resolve().parents[1]
+        for path in (root / "agents/sol-advisor-sol-reviewer.toml",
+                     root / "skills/orchestration/references/role-contracts.md"):
+            with self.subTest(path=path.name):
+                match = re.search(r"design \+ valid => DESIGN_VERDICT: ([^\n]+)", path.read_text())
+                self.assertIsNotNone(match, "design reviews lack their own output contract")
+                choices = {item.strip() for item in match[1].split("|")}
+                self.assertEqual(choices, {"design-approved", "fix-first", "rethink"})
+                for verdict in choices:
+                    self.protocol().validate_design_review({
+                        "record_type": "DR", "status": "valid", "design_verdict": verdict,
+                        "contract_digest": CONTRACT_DIGEST,
+                    })
+                for status in ("unavailable", "invalid"):
+                    self.protocol().validate_design_review({
+                        "record_type": "DR", "status": status, "design_verdict": None,
+                    })
+                with self.assertRaises(self.protocol().VerdictValidationError):
+                    self.protocol().validate_design_review({
+                        "record_type": "DR", "status": "valid", "design_verdict": "ship",
+                        "contract_digest": CONTRACT_DIGEST,
+                    })
+
     def test_four_relationship_validators_reject_context_free_calls(self) -> None:
         protocol = self.protocol()
         samples = (
@@ -922,7 +948,7 @@ class ProtocolFixture:
             if review_policy is not None:
                 self.contract["review_policy"] = review_policy
             self.contract["contract_digest"] = digest(self.contract, without=("contract_digest",))
-        self._temporary_repo = tempfile.TemporaryDirectory(dir=TEST_ARTIFACTS)
+        self._temporary_repo = fixture_directory(TEST_ARTIFACTS)
         repo = Path(self._temporary_repo.name) / "candidate-repo"
         repo.mkdir()
         subprocess.run(["git", "init", "-q", str(repo)], check=True)
@@ -1154,7 +1180,7 @@ def complete_review_context(f: ProtocolFixture, verdict: dict[str, object], root
     receipt = challenge_receipt(request, evidence)
     attestation = {
         "context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer",
-        "model": "gpt-5.6-sol", "effort": "high", "observed_attestation": {"observed": True},
+        "model": "gpt-6-sol", "effort": "xhigh", "observed_attestation": {"observed": True},
     }
     verdict["observed_attestation_digest"] = digest(attestation)
     verdict.setdefault("rejection_dispositions", {})
@@ -1442,7 +1468,7 @@ class PublicRelationshipClosureTests(unittest.TestCase):
             "candidate_bridge_id": f.bridge["bridge_id"], "challenge_receipt_id": "CR-1",
             "rejection_closure": [], "coverage_complete": True, "rejection_dispositions": {}, "open_rejections": [],
         }
-        attestation = {"context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer", "model": "gpt-5.6-sol", "effort": "high", "observed_attestation": {"observed": True}}
+        attestation = {"context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh", "observed_attestation": {"observed": True}}
         verdict["observed_attestation_digest"] = digest(attestation)
         with self.assertRaises(full_protocol.RelationshipValidationError):
             full_protocol.validate_verdict(verdict, context=f.context(packet=packet, candidate_evidence=[self.candidate_evidence(f)], applicable_rejection_roots=[], predecessor_verdicts={}, expected_coverage=["delivery", "candidate"], challenge_request=request, challenge_evidence=challenge_evidence, challenge_receipt=receipt, verdict=verdict, observed_attestation=attestation))
@@ -1498,7 +1524,7 @@ class PublicRelationshipClosureTests(unittest.TestCase):
         challenge = {"record_type": "E", "evidence_id": "E-challenge-1", "contract_digest": CONTRACT_DIGEST, "scope": "challenge", "subject_id": "P-1:" + f.bridge["bridge_id"], "check_key": "challenge", "challenge_request_id": "Q-1", "challenge_request_digest": request["request_digest"], "harness_identity": "harness", "environment_identity": "env", "runtime_identity": "runtime", "result": "pass", "logs": []}
         challenge["evidence_digest"] = digest(challenge)
         receipt = {"record_type": "CR", "challenge_receipt_id": "CR-1", "challenge_request_id": "Q-1", "packet_id": "P-1", "candidate_bridge_id": f.bridge["bridge_id"], "evidence_id": "E-challenge-1", "challenge_request_digest": request["request_digest"]}
-        attestation = {"context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer", "model": "gpt-5.6-sol", "effort": "high", "observed_attestation": {"observed": True}}
+        attestation = {"context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh", "observed_attestation": {"observed": True}}
         verdict["observed_attestation_digest"] = digest(attestation)
         relationship = f.context(packet=packet, candidate_evidence=[self.candidate_evidence(f)], applicable_rejection_roots=[], predecessor_verdicts={}, expected_coverage=["delivery", "candidate"], challenge_request=request, challenge_evidence=challenge, challenge_receipt=receipt, verdict=verdict, observed_attestation=attestation)
         verify = f.candidate_verify_receipt
@@ -1568,7 +1594,7 @@ class PublicRelationshipClosureTests(unittest.TestCase):
             dict(r3, scope=dict(r3["scope"], route="audit")),
             *(
                 dict(r3, issuer={"role": role, "model": "gpt-5.6-sol"})
-                for role in ("sol_advisor_terra_implementer", "sol_advisor_sol_reviewer", "reviewer")
+                for role in ("sol_advisor_sol_implementer", "sol_advisor_sol_reviewer", "reviewer")
             ),
         ):
             with self.subTest(authority=authority), self.assertRaises(full_protocol.RelationshipValidationError):

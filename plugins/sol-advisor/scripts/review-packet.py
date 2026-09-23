@@ -659,8 +659,8 @@ def observed_reviewer_attestation(
         )
     if (
         runtime_receipt["agent_role"] != "sol_advisor_sol_reviewer"
-        or runtime_receipt["model"] != "gpt-5.6-sol"
-        or runtime_receipt["effort"] != "high"
+        or runtime_receipt["model"] != "gpt-6-sol"
+        or runtime_receipt["effort"] != "xhigh"
     ):
         raise workflow.WorkflowError(
             "review-invalid", "runtime receipt is not the required read-only Sol reviewer",
