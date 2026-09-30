@@ -187,6 +187,46 @@ class VerifyTestSuiteTests(unittest.TestCase):
             self.assertNotEqual(refused.returncode, 0)
             self.assertEqual({p.name: p.read_bytes() for p in target.iterdir()}, before)
 
+    def test_v082_sol_roles_migrate_to_exact_current_templates(self) -> None:
+        plugin = RUNNER.parent.parent
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "agents"
+            shutil.copytree(plugin / "agents", target)
+            for role in ("implementer", "reviewer"):
+                (target / f"sol-advisor-sol-{role}.toml").write_bytes(
+                    (plugin / f"tests/fixtures/{role}-v082.toml").read_bytes()
+                )
+            command = ["sh", str(plugin / "scripts/install-agents.sh"), "--target-dir", str(target)]
+            before = {p.name: p.read_bytes() for p in target.iterdir()}
+            check = subprocess.run(command + ["--check"], capture_output=True, text=True)
+            self.assertNotEqual(check.returncode, 0)
+            self.assertEqual({p.name: p.read_bytes() for p in target.iterdir()}, before)
+            migrated = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(migrated.returncode, 0, migrated.stderr)
+            self.assertEqual(
+                {p.name: p.read_bytes() for p in target.iterdir()},
+                {p.name: p.read_bytes() for p in (plugin / "agents").iterdir()},
+            )
+            self.assertEqual(subprocess.run(command + ["--check"], capture_output=True).returncode, 0)
+            self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
+
+    def test_modified_v082_sol_role_refuses_without_partial_migration(self) -> None:
+        plugin = RUNNER.parent.parent
+        for modified_role in ("implementer", "reviewer"):
+            with self.subTest(role=modified_role), tempfile.TemporaryDirectory() as tmp:
+                target = Path(tmp) / "agents"
+                shutil.copytree(plugin / "agents", target)
+                for role in ("implementer", "reviewer"):
+                    previous = (plugin / f"tests/fixtures/{role}-v082.toml").read_bytes()
+                    if role == modified_role:
+                        previous += b"\n# user customization\n"
+                    (target / f"sol-advisor-sol-{role}.toml").write_bytes(previous)
+                before = {p.name: p.read_bytes() for p in target.iterdir()}
+                command = ["sh", str(plugin / "scripts/install-agents.sh"), "--target-dir", str(target)]
+                refused = subprocess.run(command, capture_output=True, text=True)
+                self.assertNotEqual(refused.returncode, 0)
+                self.assertEqual({p.name: p.read_bytes() for p in target.iterdir()}, before)
+
     def test_previous_implementer_name_migrates_without_leaving_terra(self) -> None:
         plugin = RUNNER.parent.parent
         old_bytes = (plugin / "tests/fixtures/implementer-v080.toml").read_bytes()

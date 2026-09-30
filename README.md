@@ -13,7 +13,7 @@ Sol reviewer / High access is needed only when that auxiliary is used. The sourc
 templates pin both Sol roles to `gpt-6.1-sol` / `high`; Luna stays at `gpt-6-luna` /
 `xhigh`. This source change does not update an existing plugin or installed roles.
 
-This source tree describes the `0.8.2` full-v2 protocol. Installing from a
+This source tree describes the `0.8.3` full-v2 protocol. Installing from a
 published marketplace ref may still load an older version; verify the installed manifest
 and start a new task before evaluating full-v2 behavior.
 
@@ -105,7 +105,8 @@ plugin_dir="$(codex plugin add sol-advisor@sol-advisor --json | jq -er '.install
 ~~~
 
 The installer automatically migrates only exact known historical templates, including the
-shipped 0.7.3 old-name implementer and Reviewer bytes. User-modified, symlinked, nonregular or otherwise
+shipped 0.7.3 old-name implementer and Reviewer bytes, and the exact 0.8.2 Sol
+implementer and Reviewer profiles. User-modified, symlinked, nonregular or otherwise
 unknown destinations are refused without partial replacement. Use `--check` for a no-write
 preflight. Roll back by reinstalling the prior plugin version and its exact companion roles,
 then start another new task; existing tasks do not hot-reload role or Skill changes.

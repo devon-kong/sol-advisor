@@ -237,14 +237,14 @@ pass "UI metadata exposes orchestration and its default route prompt"
 
 jq empty "$manifest"
 case "$(jq -r '.version' "$manifest")" in
-  0.8.2) ;;
-  *) fail "manifest version is not 0.8.2" ;;
+  0.8.3) ;;
+  *) fail "manifest version is not 0.8.3" ;;
 esac
 jq -e '.name == "sol-advisor" and (.plugins | length) == 1 and .plugins[0].name == "sol-advisor" and .plugins[0].source.source == "local" and .plugins[0].source.path == "./plugins/sol-advisor"' "$marketplace" >/dev/null || fail "marketplace metadata does not point to the sole local sol-advisor plugin"
 grep -Fq 'SELECTIVE ROUTE' "$manifest" || fail "manifest omits route declaration"
 jq -e '.interface.longDescription | contains("fail closed") and contains("combined candidate")' "$manifest" >/dev/null || fail "manifest omits full-v2 candidate/evidence fail-closed semantics"
 grep -Fq 'For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery.' "$manifest" || fail "manifest omits startup sequencing"
-pass "manifest JSON and v0.8.2 discovery copy"
+pass "manifest JSON and v0.8.3 discovery copy"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path
@@ -732,6 +732,8 @@ all_test_output=$(PYTHONDONTWRITEBYTECODE=1 python3 "$strict_test_runner" --test
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_clean_checkout_fixtures_initialize_their_own_parent \
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_failure_preserves_original_traceback_and_output \
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_previous_reviewer_migrates_but_custom_edits_are_preserved \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_v082_sol_roles_migrate_to_exact_current_templates \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_modified_v082_sol_role_refuses_without_partial_migration \
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_previous_luna_migrates_but_custom_edits_are_preserved \
   --required-id test_verify_test_suite.VerifyTestSuiteTests.test_fixture_parent_preserves_existing_content_and_refuses_aliases \
   --required-id test_full_protocol.ReviewerCounterexampleTests.test_documented_design_outputs_are_accepted_without_product_authority \
@@ -756,4 +758,4 @@ sh -n "$runtime_inspector"
 sh -n "$script_dir/verify.sh"
 pass "shell syntax"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor v0.8.2 full-v2 checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor v0.8.3 full-v2 checks completed in $tmp_dir"
