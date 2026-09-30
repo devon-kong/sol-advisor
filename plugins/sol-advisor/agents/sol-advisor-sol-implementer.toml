@@ -1,6 +1,6 @@
 name = "sol_advisor_sol_implementer"
 description = "Sol Advisor's explicit high-complexity implementation lane for judgment-heavy or high-risk work."
-model = "gpt-6-sol"
+model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
 
 developer_instructions = """

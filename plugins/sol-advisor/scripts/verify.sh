@@ -260,13 +260,13 @@ expected = {
     },
     "sol-advisor-sol-implementer.toml": {
         "name": "sol_advisor_sol_implementer",
-        "model": "gpt-6-sol",
+        "model": "gpt-6.1-sol",
         "model_reasoning_effort": "high",
     },
     "sol-advisor-sol-reviewer.toml": {
         "name": "sol_advisor_sol_reviewer",
-        "model": "gpt-6-sol",
-        "model_reasoning_effort": "xhigh",
+        "model": "gpt-6.1-sol",
+        "model_reasoning_effort": "high",
         "sandbox_mode": "read-only",
     },
 }
@@ -532,12 +532,12 @@ terra_id=33333333-3333-7333-8333-333333333333
 terra_rollout=$runtime_day/rollout-2026-08-15T00-00-01-$terra_id.jsonl
 printf '%s\n' \
   "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$terra_id\",\"parent_thread_id\":\"00000000-0000-7000-8000-000000000000\",\"agent_role\":\"sol_advisor_sol_implementer\",\"agent_path\":\"/root/fixture\",\"model_provider\":\"openai\",\"cwd\":\"/fixture\"}}" \
-  '{"type":"turn_context","payload":{"model":"gpt-6-sol","effort":"high","sandbox_policy":{"type":"danger-full-access"},"permission_profile":{"type":"disabled"},"cwd":"/fixture"}}' \
+  '{"type":"turn_context","payload":{"model":"gpt-6.1-sol","effort":"high","sandbox_policy":{"type":"danger-full-access"},"permission_profile":{"type":"disabled"},"cwd":"/fixture"}}' \
   > "$terra_rollout"
 terra_output=$(sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$terra_id")
 printf '%s\n' "$terra_output" | jq -e --arg id "$terra_id" '
   .thread_id == $id and .agent_role == "sol_advisor_sol_implementer"
-  and .model == "gpt-6-sol" and .effort == "high"
+  and .model == "gpt-6.1-sol" and .effort == "high"
   and .sandbox_policy_type == "danger-full-access"
   and .permission_profile_type == "disabled"
 ' >/dev/null || fail "runtime inspector returned wrong Sol implementer/High evidence"
@@ -547,16 +547,16 @@ reviewer_id=44444444-4444-7444-8444-444444444444
 reviewer_rollout=$runtime_day/rollout-2026-08-15T00-00-02-$reviewer_id.jsonl
 printf '%s\n' \
   "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$reviewer_id\",\"parent_thread_id\":\"00000000-0000-7000-8000-000000000000\",\"agent_role\":\"sol_advisor_sol_reviewer\",\"agent_path\":\"/root/fixture\",\"model_provider\":\"openai\",\"cwd\":\"/fixture\"}}" \
-  '{"type":"turn_context","payload":{"model":"gpt-6-sol","effort":"xhigh","sandbox_policy":{"type":"read-only"},"permission_profile":{"type":"disabled"},"cwd":"/fixture"}}' \
+  '{"type":"turn_context","payload":{"model":"gpt-6.1-sol","effort":"high","sandbox_policy":{"type":"read-only"},"permission_profile":{"type":"disabled"},"cwd":"/fixture"}}' \
   > "$reviewer_rollout"
 reviewer_output=$(sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$reviewer_id")
 printf '%s\n' "$reviewer_output" | jq -e --arg id "$reviewer_id" '
   .thread_id == $id and .agent_role == "sol_advisor_sol_reviewer"
-  and .model == "gpt-6-sol" and .effort == "xhigh"
+  and .model == "gpt-6.1-sol" and .effort == "high"
   and .sandbox_policy_type == "read-only"
   and .permission_profile_type == "disabled"
-' >/dev/null || fail "runtime inspector returned wrong Reviewer Sol/XHigh/read-only evidence"
-pass "runtime inspector Reviewer Sol/XHigh/read-only evidence"
+' >/dev/null || fail "runtime inspector returned wrong Reviewer Sol/High/read-only evidence"
+pass "runtime inspector Reviewer Sol/High/read-only evidence"
 
 for document in "$contracts" "$operations"; do
   grep -Fq 'agent_type: sol_advisor_luna_implementer' "$document" || fail "missing Luna spawn in $document"

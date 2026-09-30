@@ -162,7 +162,7 @@ class FullProtocolTests(unittest.TestCase):
             "schema": "SA-REVIEW-ATTESTATION-1", "mode": "hard-read-only",
             "reviewer": {
                 "thread_id": "sol-1", "context_id": "sol-context-1", "context_source": "observed-context",
-                "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh",
+                "role": "sol_advisor_sol_reviewer", "model": "gpt-6.1-sol", "effort": "high",
                 "runtime_receipt_digest": "sha256:" + "1" * 64,
             },
             "observed": {"sandbox_policy_type": "read-only", "permission_profile": "disabled", "prompt_digest": "sha256:" + "2" * 64},
@@ -188,7 +188,7 @@ class FullProtocolTests(unittest.TestCase):
         candidate_identity = {"candidate_id": "sha256:" + "4" * 64, "manifest_hash": "sha256:" + "5" * 64, "verify_receipt_digest": "sha256:" + "6" * 64}
         attestation = {
             "schema": "SA-REVIEW-ATTESTATION-1", "mode": "behavioral-window",
-            "reviewer": {"thread_id": "sol-1", "context_id": "sol-1", "context_source": "verified-thread-id", "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh", "runtime_receipt_digest": "sha256:" + "7" * 64},
+            "reviewer": {"thread_id": "sol-1", "context_id": "sol-1", "context_source": "verified-thread-id", "role": "sol_advisor_sol_reviewer", "model": "gpt-6.1-sol", "effort": "high", "runtime_receipt_digest": "sha256:" + "7" * 64},
             "observed": {"sandbox_policy_type": "danger-full-access", "permission_profile": "disabled", "prompt_digest": prompt},
             "windows": [{"candidate_before": candidate_identity, "candidate_after": candidate_identity, "task_tree_before": "sha256:" + "8" * 64, "task_tree_after": "sha256:" + "8" * 64}],
         }
@@ -476,7 +476,7 @@ class FullProtocolTests(unittest.TestCase):
         receipt = challenge_receipt(request, evidence)
         attestation = {
             "context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer",
-            "model": "gpt-6-sol", "effort": "xhigh", "observed_attestation": {"observed": True},
+            "model": "gpt-6.1-sol", "effort": "high", "observed_attestation": {"observed": True},
         }
         ship["observed_attestation_digest"] = digest(attestation)
         context = f.context(
@@ -626,7 +626,7 @@ class ReviewerCounterexampleTests(unittest.TestCase):
         def context_for(status: str, *, verdict_override=None, attestation_override=None):
             attestation = attestation_override or {
                 "context_id": "context-unavailable", "thread_id": "thread-unavailable",
-                "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh",
+                "role": "sol_advisor_sol_reviewer", "model": "gpt-6.1-sol", "effort": "high",
                 "observed_attestation": {"observed": True},
             }
             verdict = verdict_override or {
@@ -1180,7 +1180,7 @@ def complete_review_context(f: ProtocolFixture, verdict: dict[str, object], root
     receipt = challenge_receipt(request, evidence)
     attestation = {
         "context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer",
-        "model": "gpt-6-sol", "effort": "xhigh", "observed_attestation": {"observed": True},
+        "model": "gpt-6.1-sol", "effort": "high", "observed_attestation": {"observed": True},
     }
     verdict["observed_attestation_digest"] = digest(attestation)
     verdict.setdefault("rejection_dispositions", {})
@@ -1468,7 +1468,7 @@ class PublicRelationshipClosureTests(unittest.TestCase):
             "candidate_bridge_id": f.bridge["bridge_id"], "challenge_receipt_id": "CR-1",
             "rejection_closure": [], "coverage_complete": True, "rejection_dispositions": {}, "open_rejections": [],
         }
-        attestation = {"context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh", "observed_attestation": {"observed": True}}
+        attestation = {"context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer", "model": "gpt-6.1-sol", "effort": "high", "observed_attestation": {"observed": True}}
         verdict["observed_attestation_digest"] = digest(attestation)
         with self.assertRaises(full_protocol.RelationshipValidationError):
             full_protocol.validate_verdict(verdict, context=f.context(packet=packet, candidate_evidence=[self.candidate_evidence(f)], applicable_rejection_roots=[], predecessor_verdicts={}, expected_coverage=["delivery", "candidate"], challenge_request=request, challenge_evidence=challenge_evidence, challenge_receipt=receipt, verdict=verdict, observed_attestation=attestation))
@@ -1524,7 +1524,7 @@ class PublicRelationshipClosureTests(unittest.TestCase):
         challenge = {"record_type": "E", "evidence_id": "E-challenge-1", "contract_digest": CONTRACT_DIGEST, "scope": "challenge", "subject_id": "P-1:" + f.bridge["bridge_id"], "check_key": "challenge", "challenge_request_id": "Q-1", "challenge_request_digest": request["request_digest"], "harness_identity": "harness", "environment_identity": "env", "runtime_identity": "runtime", "result": "pass", "logs": []}
         challenge["evidence_digest"] = digest(challenge)
         receipt = {"record_type": "CR", "challenge_receipt_id": "CR-1", "challenge_request_id": "Q-1", "packet_id": "P-1", "candidate_bridge_id": f.bridge["bridge_id"], "evidence_id": "E-challenge-1", "challenge_request_digest": request["request_digest"]}
-        attestation = {"context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer", "model": "gpt-6-sol", "effort": "xhigh", "observed_attestation": {"observed": True}}
+        attestation = {"context_id": "context-1", "thread_id": "thread-1", "role": "sol_advisor_sol_reviewer", "model": "gpt-6.1-sol", "effort": "high", "observed_attestation": {"observed": True}}
         verdict["observed_attestation_digest"] = digest(attestation)
         relationship = f.context(packet=packet, candidate_evidence=[self.candidate_evidence(f)], applicable_rejection_roots=[], predecessor_verdicts={}, expected_coverage=["delivery", "candidate"], challenge_request=request, challenge_evidence=challenge, challenge_receipt=receipt, verdict=verdict, observed_attestation=attestation)
         verify = f.candidate_verify_receipt

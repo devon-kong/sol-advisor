@@ -148,7 +148,7 @@ class WorkflowFixture:
         runtime = {
             "thread_id": f"thread-{work_key}",
             "agent_role": "sol_advisor_sol_implementer",
-            "model": "gpt-6-sol",
+            "model": "gpt-6.1-sol",
             "effort": "high",
             "task_id": "fixture-task",
             "stage_key": self.contract["work_items"][work_key].get("stage_key", "p2"),

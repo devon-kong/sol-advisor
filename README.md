@@ -9,7 +9,9 @@ delegation, verification, and acceptance.
 You need a current Codex CLI or ChatGPT desktop app with plugins enabled, native
 custom-agent support, jq, and Python 3. The candidate behavior suite is verified on Python
 3.12 and 3.14; other Python versions are not claimed here. Luna / XHigh, Sol implementer / High, or
-Sol reviewer / XHigh access is needed only when that auxiliary is used.
+Sol reviewer / High access is needed only when that auxiliary is used. The source
+templates pin both Sol roles to `gpt-6.1-sol` / `high`; Luna stays at `gpt-6-luna` /
+`xhigh`. This source change does not update an existing plugin or installed roles.
 
 This source tree describes the `0.8.2` full-v2 protocol. Installing from a
 published marketplace ref may still load an older version; verify the installed manifest

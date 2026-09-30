@@ -1057,7 +1057,7 @@ def _validate_runtime_receipt(
         )
     if (
         runtime["agent_role"] != "sol_advisor_sol_implementer"
-        or runtime["model"] != "gpt-6-sol"
+        or runtime["model"] != "gpt-6.1-sol"
         or runtime["effort"] != "high"
         or runtime["work_key"] != work_key
         or (expected_stage_key is not None and runtime["stage_key"] != expected_stage_key)

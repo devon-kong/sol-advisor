@@ -140,7 +140,7 @@ agent_type: sol_advisor_sol_reviewer
 fork_turns: none
 ~~~
 
-The installed Reviewer pin is Sol reviewer / XHigh and requests a read-only sandbox. Observe the
+The installed Reviewer pin is Sol reviewer / High and requests a read-only sandbox. Observe the
 actual role, pin, sandbox policy, and permission profile before accepting its verdict.
 
 Prompt:

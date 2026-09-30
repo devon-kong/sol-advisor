@@ -67,7 +67,7 @@ model, effort, or reviewer.
 - `delegate`: select Luna / XHigh for bounded, fully specified work, or Sol implementer / High for
   judgment-heavy, high-risk, context-heavy, or wide-blast-radius work. The selected
   implementer executes the complete spec; root verifies; do not request a fresh review.
-- `audit`: root implements and verifies; a fresh read-only Sol reviewer / XHigh reviews
+- `audit`: root implements and verifies; a fresh read-only Sol reviewer / High reviews
   the accumulated diff; spawn no implementer.
 - `full`: only for an explicit broad or high-risk exception. Root owns plan, identity,
   decision, release, and final acceptance; it schedules one or more peer Sol implementer stage
@@ -187,9 +187,9 @@ on an authorized resume, preserve prior failures and the cumulative closure reco
 
 ## Review only when the route includes it
 
-For `audit`, after Root verification, spawn a new native Sol reviewer / XHigh. For `full`,
+For `audit`, after Root verification, spawn a new native Sol reviewer / High. For `full`,
 after structured Sol implementer deliveries and identity binding, spawn a new native
-Sol reviewer / XHigh. The reviewer must remain behaviorally read-only, inspect the actual
+Sol reviewer / High. The reviewer must remain behaviorally read-only, inspect the actual
 accumulated diff, and return `REVIEW_STATUS: valid|unavailable|invalid`; only valid carries
 exactly one of ship, fix-first, or rethink. A reviewer never implements its own fixes. For
 every high-risk or repeated-omission principal material

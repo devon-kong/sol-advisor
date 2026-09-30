@@ -18,8 +18,8 @@ The installed TOMLs are the source of truth:
 | Role type | Model | Effort | Use |
 |---|---|---|---|
 | sol_advisor_luna_implementer | gpt-6-luna | xhigh | Bounded implementation |
-| sol_advisor_sol_implementer | gpt-6-sol | high | Judgment-heavy or high-risk implementation |
-| sol_advisor_sol_reviewer | gpt-6-sol | xhigh | Fresh review; requests read-only sandbox |
+| sol_advisor_sol_implementer | gpt-6.1-sol | high | Judgment-heavy or high-risk implementation |
+| sol_advisor_sol_reviewer | gpt-6.1-sol | high | Fresh review; requests read-only sandbox |
 
 Use the selected exact role with a fresh context:
 
