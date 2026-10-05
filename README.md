@@ -13,7 +13,7 @@ Sol reviewer / High access is needed only when that auxiliary is used. The sourc
 templates pin both Sol roles to `gpt-6.1-sol` / `high`; Luna stays at `gpt-6-luna` /
 `xhigh`. This source change does not update an existing plugin or installed roles.
 
-This source tree describes the `0.8.3` full-v2 protocol. Installing from a
+This source tree describes the `0.9.0` full-v2 protocol with orchestration review rounds. Installing from a
 published marketplace ref may still load an older version; verify the installed manifest
 and start a new task before evaluating full-v2 behavior.
 
@@ -40,12 +40,18 @@ skill and its linked guidance first; declare the selective route before other ta
 |---|---|---|
 | `solo` | Default; risk is contained. | Root plans, implements, tests, and self-reviews. |
 | `delegate` | A complete spec is better executed by one implementer. | Luna / XHigh for bounded work, or Sol implementer / High for judgment-heavy or high-risk work; root verifies. |
-| `audit` | Independent final scrutiny matters more than delegation. | Root implements; a fresh read-only Reviewer inspects the diff. |
-| `full` | Explicit broad or high-risk exception. | Root schedules independent peer Sol implementer work when useful, tools assemble exact deliveries, and one fresh read-only Sol reviewer checks the real combined candidate. |
+| `audit` | Independent final scrutiny matters more than delegation. | Root implements; the configured fresh read-only Reviewers inspect the diff. |
+| `full` | Explicit broad or high-risk exception. | Root schedules independent peer Sol implementer work when useful, tools assemble exact deliveries, and the configured fresh read-only Sol Reviewers check the real combined candidate. |
 
-Solo is the default and non-full behavior is unchanged. One auxiliary remains the default
-maximum outside `full`; full is the explicit exception and may use multiple peer Sol implementer
-instances only for genuinely independent work. The root declares a `SELECTIVE ROUTE` with the mode and concise risk
+Solo is the default. Delegate uses at most one implementer; audit/full default to
+`reviewers_per_round = 2`. A user may request any positive integer, including 1, 3 or 10.
+This is the number of independent fresh Reviewers in one round, not a correction-round limit.
+When runtime slots are limited, Root runs batches and keeps the same candidate frozen.
+Reviewers never see peer results before returning. Root adjudicates findings against
+requirement, evidence, impact and scope, groups duplicate causes, and never uses majority
+votes or adds an N+1 tie-breaker. Unavailable results stop acceptance; corrections require
+an entirely fresh round. Full remains an explicit exception and may use independent peer
+implementers when useful. The root declares a `SELECTIVE ROUTE` with the mode and concise risk
 rationale before the first task tool call. It can escalate only when newly
 observed risk justifies it and never silently downgrades. You do not need to select or
 manage a lane.
@@ -55,7 +61,7 @@ and `audit`, existing Root verification responsibilities remain. In `full`, each
 its own implementation, tests, self-review and delivery; there is no lead/integrator Sol implementer.
 The Root plans, schedules, resolves interface or authority conflicts, binds the mechanically
 combined candidate and makes final acceptance without a default duplicate technical rerun.
-The same fresh Sol context performs critical checks and then the remaining stage review.
+Each fresh Sol context performs critical checks and then the remaining stage review.
 Any implementation correction requires a new candidate and fresh review.
 
 The root also keeps one acceptance basis across implementation and review. When a defect
@@ -87,13 +93,18 @@ Full-v2 uses small standard-library tools under `plugins/sol-advisor/scripts/`:
 These tools do not install the plugin, start an Agent, authorize network/business actions,
 or turn fixture results into a review verdict.
 
-Generated material uses `<workspace>/.agent-artifacts/<task-id>/`, with correction rounds
-beneath it and an anchored project Git ignore entry. New candidates exclude untracked
-material under that exact root; tracked files and explicit acceptance inputs stay bound.
-Disposable `work/` is separate from a stable, minimal
-`archive/`; required reviewed inputs live at their retained paths before candidate binding.
-Permanent tests and project documentation follow existing repository conventions. Ordinary
-edits need no mandatory archive, and the convention does not authorize deleting old evidence.
+Sol Advisor does not require or create project `.agent-artifacts/`. Routine work needs
+no runtime directory. Audit/full file-backed state defaults to one private directory under
+`$TMPDIR` (or `/tmp`); explicit external durable storage remains supported. Assembly skips
+untracked historical artifact trees while preserving tracked source. Existing artifacts and
+candidate inventory semantics remain untouched; no automatic historical cleanup or ignore
+file mutation is performed. Temporary state loss makes affected evidence unavailable, so
+cross-session durable recovery requires an explicit persistent location before binding.
+
+`scripts/review-round.py` is a small orchestration pool checker. New full contracts declare
+`review_policy.reviewers_per_round`; the formal V remains single, and final-accept also gates
+on a persisted complete round via `--review-round-id`. A binds the round ID and digest.
+Existing full contracts without this field retain their original interpretation.
 
 ## Updating
 

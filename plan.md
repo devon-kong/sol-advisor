@@ -114,3 +114,48 @@ guidance, README, ignore rule, and this plan; keep local evidence and unrelated 
 assets untouched. Revalidate release metadata and staged bytes, bind a new staged candidate,
 commit and push without force, then verify remote SHA and every published file. No local
 plugin installation or global configuration change is authorized by this publication.
+
+# 2026-10-05: temporary runtime storage and Reviewer rounds
+
+Approved scope: the latest linked ChatGPT proposal's two changes only. Keep routes,
+roles/model pins and the P/CR/V/A format. No commit, push, install, historical cleanup,
+Luna rename or max-review-rounds setting is authorized.
+
+- [x] Storage: default to a uniquely owned OS temporary directory outside the product
+  repository. No mandatory archive or `.gitignore` mutation. Stop creating artifact roots
+  in assembly; exclude untracked historical artifact trees from baseline copies while
+  retaining tracked source. Preserve old candidate inventory semantics for old manifests.
+- [x] Review policy: reviewers_per_round defaults to 2, accepts any positive integer
+  override; batch to available runtime slots without reducing N. Independent fresh read-only
+  contexts inspect the same candidate and acceptance basis. No automatic N+1/tiebreaker.
+- [x] Add a small orchestration-only round aggregator and Root evidence adjudication;
+  complete count/unique identities/current binding are required, unavailable never ships,
+  valid blockers win over any number of ship votes, duplicate causes group together.
+  Keep formal V single; new full contracts select the round policy and final-accept checks
+  the persisted round alongside V. Historical contracts retain their original semantics.
+- [ ] Test storage/copy behavior, count 1/2/3/10, invalid counts/duplicates/stale bindings,
+  unavailable reviewers, mixed verdicts, rejected out-of-scope findings, freshness and
+  full acceptance/recovery. Run verify.sh and git diff --check; then fresh independent review.
+
+Acceptance: source verifier passes without producing project `.agent-artifacts`; explicit
+review counts cannot be silently reduced or bypassed at new full-task acceptance. Temporary
+state loss invalidates affected evidence; old evidence and installed 0.8.3 remain untouched.
+
+First round review: two independent Reviewers returned fix-first. Confirmed blockers were
+peer prompt/window admission, design-context reuse, corrupted round history, and Root
+adjudication/canonical-V wiring. Added red counterexamples and valid neighbors; focused
+checks now pass. Final verification and a new fresh Review Round remain pending.
+
+## 2026-10-05 publication and installation authorization
+
+The user explicitly authorized committing/pushing this 0.9.0 scope to GitHub, then installing
+the published version through the official marketplace and companion-role installer. This
+supersedes the earlier no-commit/push/install boundary for these 19 files only. Existing
+untracked docs/scratch and historical evidence remain outside publication.
+
+Frozen source verification passed all 220 tests with no failures/errors/skips. One fresh
+Reviewer returned ship on the final candidate; the original Reviewer confirmed all first-round
+blockers closed. A second fresh final Reviewer could not be created because the current
+thread limit was exhausted: final two-fresh-reviewer acceptance remains NOT_COMPLETE. The
+user authorized publication/installation after this limitation was disclosed; publication
+does not convert that limitation or synthetic fixtures into native full-workflow evidence.

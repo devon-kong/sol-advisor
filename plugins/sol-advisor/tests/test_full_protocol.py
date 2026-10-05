@@ -16,7 +16,6 @@ import unittest
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 CANDIDATE_SCRIPT = SCRIPTS / "candidate.py"
 RUN_CHECK_SCRIPT = SCRIPTS / "run-check.py"
-TEST_ARTIFACTS = Path(__file__).resolve().parents[3] / ".agent-artifacts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
@@ -948,7 +947,7 @@ class ProtocolFixture:
             if review_policy is not None:
                 self.contract["review_policy"] = review_policy
             self.contract["contract_digest"] = digest(self.contract, without=("contract_digest",))
-        self._temporary_repo = fixture_directory(TEST_ARTIFACTS)
+        self._temporary_repo = fixture_directory()
         repo = Path(self._temporary_repo.name) / "candidate-repo"
         repo.mkdir()
         subprocess.run(["git", "init", "-q", str(repo)], check=True)

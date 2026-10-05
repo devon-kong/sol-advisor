@@ -219,3 +219,29 @@ nothing about the native reviewer's permissions. No probe policy means no dynami
 P2 contract admission requires an applicable final identity check for every stage. All
 `final_candidate_verify: true` checks must use candidate scope and pre-ship phase; the
 runner still executes them only after V. Invalid placement or missing coverage fails early.
+
+## Orchestration review rounds (0.9.0)
+
+New contracts add review_policy.reviewers_per_round (default 2, any requested positive
+integer). Keep P/CR/V/A single-record schemas: one selected member supplies the canonical
+V, while Root records the complete independent pool with review-round.py. This is a Root
+acceptance gate, not voting or a multi-attestation protocol. Each member performs its own
+critical challenge and full remaining review; do not share peer conclusions before returns.
+All members inspect the same CB/candidate/contract/scope. Final-accept requires a persisted
+ship round with exactly N complete valid, unique native contexts and all findings adjudicated;
+A binds review_round_id and review_round_digest. Its selected ship V must match a complete valid member's observed identity; the member's
+original findings/verdict remain intact. Root may reject unsupported findings with evidence,
+then continue the selected member in the same context to obtain the canonical ship V on the
+settled acceptance basis. This uses the original N contexts and is never an N+1 tie-breaker. A round blocker or missing member cannot be overridden by selecting a
+ship V. Corrections require a new round with all fresh identities. Historical contracts
+without this policy keep their original single-V semantics; do not edit them in place.
+
+Task records default to one private external OS temporary directory. No project artifact
+root or persistent archive is required. Missing temporary inputs stop resume/acceptance.
+Explicit durable external storage remains possible for tasks that need it. Existing records
+and old artifact paths retain their meanings and are never deleted by this migration.
+
+Every member uses the existing tagged prompt/isolation admission. Broad-host peers require
+Root's persisted begin/end windows, not a read-only boolean. Close all windows before V/round
+publication. Full admission rechecks window digests/bindings, prior-round integrity and
+separation from design/prior-candidate contexts at record, final acceptance and recovery.

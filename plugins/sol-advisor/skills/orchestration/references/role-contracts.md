@@ -235,3 +235,14 @@ sandbox/permission observations, stable reviewer-window facts, and a bound curre
 DR additionally receives a canonical non-secret design input; its digest and reviewer
 attestation must be persisted by the Root-side tool. Historical reviews remain historical and
 cannot be converted into tagged evidence for different bytes.
+
+## Independent Reviewer round contract
+
+Root selects the round count (default 2; user positive-integer override). Each Reviewer
+receives the same acceptance basis and candidate, with a fresh context and read-only
+instructions. It receives no peer result and never votes on another Reviewer's findings.
+Each returns its own complete status, verdict, coverage and findings. Every blocking finding
+must state REQUIREMENT, EVIDENCE, IMPACT and SCOPE; cite current acceptance, not a new
+standard. Root adjudicates and groups duplicate causes after independent returns. Do not
+create another Reviewer to resolve disagreement. A fix requires a new round of N fresh
+Reviewers; all old round verdicts become inapplicable to changed bytes.

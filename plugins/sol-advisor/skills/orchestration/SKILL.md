@@ -8,8 +8,8 @@ description: "Codex-native risk-gated selective routing: default solo delivery, 
 Act as the architect. Own the user's intent, acceptance basis, architecture, route choice,
 decomposition, implementation or delegation, root verification, correction decisions,
 and final acceptance. Selective routing has four exact modes: `solo`, `delegate`, `audit`,
-and `full`. Solo is the default. One auxiliary agent is the default maximum; full is an
-explicit broad or high-risk exception.
+and `full`. Solo is the default. One implementer is the default maximum in delegate; audit/full review rounds default to
+2 independent Reviewers. Full is an explicit broad or high-risk exception.
 
 Read [references/role-contracts.md](references/role-contracts.md) before the first
 delegation or review. Use [references/operations.md](references/operations.md) for exact
@@ -18,12 +18,29 @@ procedures. For high-risk, cross-module, long-running, resumed, or correction-lo
 read [references/convergence.md](references/convergence.md) and use only the artifacts the
 task needs.
 
-Before creating task artifacts, read [references/artifacts.md](references/artifacts.md).
-Use one task directory under workspace-root `.agent-artifacts/` for generated material;
-put correction rounds and auxiliary lanes beneath it, rather than creating more project
-siblings. Keep disposable work separate
-from retained acceptance inputs before binding a candidate. Routine work needs no artifact
-directory unless it actually produces files, and no mandatory archive or manifest.
+Before allocating runtime files, read [references/artifacts.md](references/artifacts.md).
+Do not require or create project `.agent-artifacts/`. Allocate a private OS temporary task
+directory only when tools need it; routine work needs no runtime directory or archive.
+
+## Review rounds
+
+For audit/full, set `reviewers_per_round: 2` unless the user requests another positive integer.
+This counts people in one round, not the maximum number of correction rounds. Record the
+requested count and acceptance basis before dispatch; never reduce it silently. Preflight
+Reviewer once for this task, verify every spawned thread's exact native identity and observed
+permissions, and use independent fresh contexts with the same candidate and acceptance basis.
+Do not share another Reviewer's findings or verdict before all independent returns are frozen.
+If N exceeds available slots, run batches, releasing completed slots; keep the candidate frozen.
+Never spawn N+1 to break a tie or because someone disagrees. Missing results stop acceptance.
+
+Root adjudicates requirement/evidence/impact/scope for every finding, merges duplicate root
+causes and records why an out-of-scope or unsupported finding is rejected. No majority vote:
+a valid implementation blocker means fix-first; a valid architecture/contract blocker means
+rethink. No valid blocker and complete valid coverage means ship. Unavailable/invalid results
+never become ship. Corrections invalidate the entire round and require N new fresh contexts.
+Use `scripts/review-round.py` to check the pool and aggregate Root dispositions. New full
+contracts put `reviewers_per_round` in review_policy; final-accept also requires the persisted
+round ID. Existing contracts keep their historical single-V interpretation.
 
 ## Declare the route before task tools
 
@@ -67,11 +84,11 @@ model, effort, or reviewer.
 - `delegate`: select Luna / XHigh for bounded, fully specified work, or Sol implementer / High for
   judgment-heavy, high-risk, context-heavy, or wide-blast-radius work. The selected
   implementer executes the complete spec; root verifies; do not request a fresh review.
-- `audit`: root implements and verifies; a fresh read-only Sol reviewer / High reviews
+- `audit`: root implements and verifies; the configured fresh read-only Sol Reviewers / High review
   the accumulated diff; spawn no implementer.
 - `full`: only for an explicit broad or high-risk exception. Root owns plan, identity,
   decision, release, and final acceptance; it schedules one or more peer Sol implementer stage
-  deliveries under the immutable task contract, then fresh Sol performs technical
+  deliveries under the immutable task contract, then the configured fresh Sol Reviewers perform technical
   validation. Root investigates exceptions and binds identity, but does not perform a
   default technical rerun or duplicate diff review.
 

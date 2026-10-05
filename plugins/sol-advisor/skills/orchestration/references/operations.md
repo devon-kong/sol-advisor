@@ -171,9 +171,8 @@ insufficient without those cases and their expected results.
 
 ## Stable candidate binding
 
-Select the stable task archive location using [artifacts.md](artifacts.md) before snapshot.
-Put the manifest and required external inputs at their retained paths from the start;
-do not move a reviewed directory from temporary work to an archive afterward.
+Select one external temporary task directory using [artifacts.md](artifacts.md) before
+snapshot. Keep manifests and required inputs at their original paths until closure.
 
 For `audit`, bind Root verification, the reviewer return, and final acceptance to the same
 candidate. For `full`, bind structured peer delivery identity, the Sol technical return, and
@@ -188,12 +187,9 @@ candidate_id="$(python3 "$candidate_tool" snapshot --repo "$repo" --output "$man
 python3 "$candidate_tool" verify --manifest "$manifest" --expected-candidate-id "$candidate_id"
 ~~~
 
-Default to `<repo>/.agent-artifacts/<task-id>/archive/manifests/` for the manifest.
-Only that repository-root artifact namespace permits internal manifests; other internal
-locations are rejected. External manifests remain supported for compatibility. New snapshot
-selection excludes untracked descendants of root `.agent-artifacts/`, never tracked files
-or nested/similarly named directories. The policy is hashed into candidate identity;
-existing schema2 manifests keep their original recorded policy and external-only location.
+Default to `$task_dir/manifests/` outside the product repository. Do not create project
+artifact roots or edit its ignore file. Historical schema-2 manifests retain their recorded
+inventory and location semantics; legacy internal manifests remain supported explicitly.
 Snapshot includes tracked files, other unignored untracked files, actual worktree bytes
 and executable state, and each supported
 tracked entry's Git index mode and object ID. Add each ignored or repository-external input
@@ -276,3 +272,48 @@ may append. Root-side tooling binds the final metadata rather than asking Sol to
 future observation digest. It cannot detect a write restored within one window and must
 not be reported as enforced read-only isolation. Hard-required contracts still refuse a
 broad host. Old evidence stays historical and cannot approve new bytes.
+
+## Reviewer pool operations
+
+Preflight the selected Reviewer once per task; verify role/model/effort/isolation for each
+returned native thread. Freeze one candidate and acceptance basis across all N returns.
+Queue batches when slots are limited; release completed agents before starting later ones.
+Do not pass peer results between Reviewers. Record per-member status, verdict, coverage,
+findings and the Root-observed runtime receipt. Root records every finding's disposition
+(accept/reject plus evidence-based reason). Aggregate with:
+
+~~~sh
+python3 "$skill_dir/../../scripts/review-round.py" aggregate --input "$round_input" --output "$round_result"
+# Full: persist under the existing task, then bind this ID in A and final-accept.
+python3 "$skill_dir/../../scripts/review-round.py" record --task-dir "$task_dir" --input "$round_input"
+# workflow.py final-accept ... --review-round-id <round-id>
+~~~
+
+Round input contains round_id, scope, candidate_id, acceptance_digest, members,
+dispositions and optional reviewers_per_round (default 2). For full, scope equals P's
+stage_key (or final for P1), acceptance_digest equals contract_digest. Each member has
+review_id, candidate_id, acceptance_digest, status, verdict, coverage_complete, findings,
+and runtime. Findings have finding_id, class, requirement, evidence, impact, scope,
+required_outcome and optional root_cause. Dispositions are keyed by review_id:finding_id.
+An accepted blocker needs all four requirement/evidence/impact/scope fields and current scope;
+an unsupported finding can only be rejected with a concrete Root reason. Every full member
+uses the existing tagged attestation admission, including exact runtime/permission/prompt facts.
+A broad host additionally names behavioral_window_id: Root must begin before dispatch and end
+after the response using review-packet.py's existing window commands. Close every member's
+window before publishing V or round records. A boolean is never isolation evidence. Record
+validates persisted window digests, candidate and native identities; final-accept/recovery
+recheck them. Audit aggregate with behavioral attestations also supplies --review-policy and
+--isolation-admission hard-or-behavioral. This is observation, not enforced isolation.
+
+After correction, all identities must be fresh. The tool checks complete persisted round
+digests before using history, plus design-review and prior-candidate identities for every
+member. The selected canonical V still requires a valid ship response. If every original
+member rejected only unsupported findings, Root preserves those raw returns and dispositions;
+the selected member can continue in the same context on the settled acceptance basis to
+supply canonical V. This is no additional Reviewer and never rewrites the raw return.
+The full round gate checks member identity and complete coverage rather than requiring its
+original verdict to be ship. Final acceptance requires both the Root-adjudicated round and
+that existing valid V. The tool checks persisted full rounds;
+audit callers pass every previous result with repeatable --previous. Missing/invalid members,
+identity reuse, changed bindings or incomplete coverage prevent acceptance. Design rounds
+remain design-only and do not authorize product acceptance.

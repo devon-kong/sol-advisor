@@ -370,6 +370,10 @@ def validate_task_contract(value: object) -> dict[str, Any]:
             if not any(check.get("final_candidate_verify") is True and check.get("stage_key", stage_key) == stage_key for check in checks.values()):
                 raise ContractValidationError(f"stage {stage_key} needs an applicable final candidate verification check")
     review_policy = _mapping(contract["review_policy"], "review_policy", ContractValidationError)
+    if "reviewers_per_round" in review_policy:
+        count = review_policy["reviewers_per_round"]
+        if type(count) is not int or count < 1:
+            raise ContractValidationError("reviewers_per_round must be a positive integer")
     allowed_verdicts = _string_list(review_policy.get("allowed_verdicts"), "review_policy.allowed_verdicts", ContractValidationError)
     if set(allowed_verdicts) != VERDICTS or len(allowed_verdicts) != len(VERDICTS):
         raise ContractValidationError("review_policy.allowed_verdicts must contain the verdict triad")
@@ -385,6 +389,8 @@ def validate_task_contract(value: object) -> dict[str, Any]:
         if admission == "hard-or-behavioral" and (not isinstance(prompt_digest, str) or not prompt_digest.startswith("sha256:") or len(prompt_digest) != 71):
             raise ContractValidationError("behavioral review policy requires an exact prompt digest")
         allowed = {"allowed_verdicts", "review_identity_schema", "isolation_admission"}
+        if "reviewers_per_round" in review_policy:
+            allowed.add("reviewers_per_round")
         if admission == "hard-or-behavioral":
             allowed.add("behavioral_read_only_prompt_digest")
         if set(review_policy) != allowed:

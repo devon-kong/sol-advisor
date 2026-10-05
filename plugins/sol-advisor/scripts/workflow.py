@@ -29,6 +29,32 @@ import candidate as candidate_tool
 import full_protocol
 
 
+def review_round_tool():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("sol_advisor_review_round", Path(__file__).with_name("review-round.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def copy_baseline(source: Path, destination: Path) -> None:
+    """Copy source while keeping only tracked paths in historical artifact trees."""
+    tracked = {os.fsdecode(path) for path in candidate_tool.run_git(source, "ls-files", "-z").split(b"\0") if path}
+
+    def ignored(directory, names):
+        relative = Path(directory).relative_to(source)
+        excluded = []
+        for name in names:
+            path = relative / name
+            if ".agent-artifacts" in path.parts:
+                key = path.as_posix()
+                if not any(item == key or item.startswith(key + "/") for item in tracked):
+                    excluded.append(name)
+        return excluded
+
+    shutil.copytree(source, destination, symlinks=True, ignore=ignored)
+
+
 ERROR_CATEGORIES = frozenset(
     {
         "invalid-input",
@@ -1694,8 +1720,7 @@ def _build_assembly(
     staging_root = Path(tempfile.mkdtemp(prefix="sol-advisor-assembly.")).resolve(strict=True)
     staging_workspace = staging_root / "workspace"
     try:
-        shutil.copytree(baseline_repo, staging_workspace, symlinks=True)
-        (staging_workspace / ".agent-artifacts").mkdir(mode=0o700, exist_ok=True)
+        copy_baseline(baseline_repo, staging_workspace)
         for item in selected_items:
             _apply_bundle(staging_workspace, item["bundle"])
         with _task_lock(task):
@@ -1748,7 +1773,7 @@ def _build_assembly(
     )
     if _is_staged_contract(contract):
         # The runner is an actual verification dependency, outside ordinary product fixtures.
-        input_paths = candidate_tool.normalize_explicit_inputs([*input_paths, *[os.fspath(Path(__file__).with_name(name).resolve()) for name in ("run-check.py", "workflow.py", "full_protocol.py", "candidate.py")]])
+        input_paths = candidate_tool.normalize_explicit_inputs([*input_paths, *[os.fspath(Path(__file__).with_name(name).resolve()) for name in ("run-check.py", "workflow.py", "full_protocol.py", "candidate.py", "review-round.py")]])
     manifest = candidate_tool.build_candidate(workspace, input_paths)
     manifest_path = directory / "candidate-manifest.json"
     publish_task_path_json(task, manifest_path, manifest)
@@ -2294,6 +2319,46 @@ def require_persisted_p2_predecessor_closure(
             )
 
 
+def require_review_round(task, contract, relationship, acceptance, round_id):
+    """Gate new contracts with the complete orchestration pool, retaining legacy V."""
+    if "reviewers_per_round" not in contract["review_policy"]:
+        if round_id is not None or "review_round_id" in acceptance:
+            raise WorkflowError("review-invalid", "legacy contract does not select review rounds", affected=str(round_id))
+        return None
+    try:
+        round_id = _task_component(round_id, "review round ID")
+        value, _ = _json_bytes(task / "review-rounds" / (round_id + ".json"))
+        tool = review_round_tool()
+        tool.validate_record(value, count=contract["review_policy"]["reviewers_per_round"],
+            candidate_id=relationship.manifest["candidate_id"], acceptance_digest=contract["contract_digest"],
+            scope=relationship.packet.get("stage_key", "final"),
+            isolation_admission=contract["review_policy"].get("isolation_admission", "hard-read-only"),
+            review_policy=contract["review_policy"])
+        members = tool.full_member_admission(task, contract, relationship.manifest,
+            relationship.candidate_verify_receipt, relationship.candidate_bridge["bridge_id"], value["members"])
+        if members != value["members"]:
+            raise ValueError("round member admission drifted")
+        previous = [_json_bytes(path)[0] for path in sorted((task / "review-rounds").glob("*.json"))
+                    if path != task / "review-rounds" / (round_id + ".json")]
+        if value != tool.aggregate(value, previous=previous,
+            isolation_admission=contract["review_policy"].get("isolation_admission", "hard-read-only"),
+            review_policy=contract["review_policy"]):
+            raise ValueError("round history drifted")
+        if value["status"] != "valid" or value["verdict"] != "ship":
+            raise ValueError("round is incomplete or has valid blockers")
+        if acceptance.get("review_round_id") != round_id or acceptance.get("review_round_digest") != value["round_digest"]:
+            raise ValueError("A does not bind this exact review round")
+        verdict = relationship.verdict
+        if not any(m["status"] == "valid" and m["coverage_complete"] is True
+                   and m["runtime"]["thread_id"] == verdict["reviewer_thread_id"]
+                   and m["runtime"].get("context_id", m["runtime"]["thread_id"]) == verdict["reviewer_context_id"]
+                   for m in value["members"]):
+            raise ValueError("canonical V is not a complete valid member of this round")
+        return value
+    except (ValueError, KeyError, TypeError, OSError) as error:
+        raise WorkflowError("review-invalid", f"review round admission failed: {error}", affected=str(round_id)) from error
+
+
 def final_accept(
     task_dir: Path | str, *, op_id: str, expected_state_version: int,
     acceptance: Mapping[str, object], relationship: full_protocol.RelationshipContext,
@@ -2301,6 +2366,7 @@ def final_accept(
     candidate_verify_receipt: Mapping[str, object],
     dependency_acceptance_contexts: Mapping[str, full_protocol.AcceptanceContext],
     trusted_observation_time: object,
+    review_round_id: str | None = None,
 ) -> dict[str, Any]:
     """Validate prior review/authority and durably record one final stage acceptance."""
 
@@ -2308,6 +2374,7 @@ def final_accept(
     records = read_task(task)
     require_persisted_run_evidence(task, final_candidate_evidence, affected=op_id)
     contract = records["contract"]
+    round_record = require_review_round(task, contract, relationship, acceptance, review_round_id)
     staged = _is_staged_contract(contract)
     stage_key = acceptance.get("accepted_stage_key") if isinstance(acceptance, Mapping) else None
     if staged:
@@ -2337,6 +2404,8 @@ def final_accept(
             else trusted_observation_time
         ),
     }
+    if round_record is not None:
+        request["review_round"] = full_protocol.canonical_digest(round_record)
     request_digest = full_protocol.canonical_digest(request)
     acceptance_id = acceptance.get("acceptance_id")
     if not isinstance(acceptance_id, str) or not acceptance_id:
@@ -2590,6 +2659,7 @@ def _load_persisted_acceptance_context(task: Path, acceptance_id: str, active: s
             raise WorkflowError("candidate-changed", "persisted acceptance lacks verdict", affected=acceptance_id)
         relationship_package, _ = _json_bytes(task / "reviews" / _task_component(verdict_id, "verdict ID") / "context.json")
         relationship = _relationship_from_stored_package(relationship_package)
+        require_review_round(task, relationship.task_contract, relationship, acceptance, acceptance.get("review_round_id"))
         try:
             if relationship.packet is None:
                 raise full_protocol.RelationshipValidationError(
@@ -2648,6 +2718,7 @@ def parser() -> argparse.ArgumentParser:
     final.add_argument("--acceptance", required=True)
     final.add_argument("--final-evidence", required=True)
     final.add_argument("--root-authority", required=True)
+    final.add_argument("--review-round-id")
     final.add_argument("--trusted-observation-time", required=True)
     return result
 
@@ -2686,6 +2757,7 @@ def main() -> int:
                 candidate_verify_receipt=relationship.candidate_verify_receipt,
                 dependency_acceptance_contexts=dependencies,
                 trusted_observation_time=arguments.trusted_observation_time,
+                review_round_id=arguments.review_round_id,
             )
         else:
             output = assemble_candidate(

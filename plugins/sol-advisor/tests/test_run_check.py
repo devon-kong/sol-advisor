@@ -15,7 +15,6 @@ import unittest
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
-TEST_ARTIFACTS = Path(__file__).resolve().parents[3] / ".agent-artifacts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
@@ -45,7 +44,7 @@ class RunCheckFixture:
         acceptance_material_paths: list[str] | None = None,
         allowed_argv_suffixes: list[list[str]] | None = None,
     ) -> None:
-        self.temp = fixture_directory(TEST_ARTIFACTS)
+        self.temp = fixture_directory()
         self.root = Path(self.temp.name)
         self.script = self.root / "check.py"
         self.script.write_text(script_body, encoding="utf-8")

@@ -15,7 +15,6 @@ import unittest
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
-TEST_ARTIFACTS = Path(__file__).resolve().parents[3] / ".agent-artifacts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
@@ -38,7 +37,7 @@ def write_json(path: Path, value: object) -> None:
 
 class WorkflowFixture:
     def __init__(self, *, overlapping: bool = False, staged: bool = False) -> None:
-        self.temp = fixture_directory(TEST_ARTIFACTS)
+        self.temp = fixture_directory()
         self.root = Path(self.temp.name)
         self.baseline = self.root / "baseline"
         self.baseline.mkdir()
@@ -221,6 +220,33 @@ class WorkflowFixture:
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_assembly_does_not_create_or_copy_untracked_artifact_trees(self):
+        f = self.fixture()
+        for relative in ('.agent-artifacts/old/blob', 'nested/.agent-artifacts/old/blob'):
+            path = f.baseline / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('historical evidence')
+        (f.baseline / '.gitignore').write_text('.agent-artifacts/\n')
+        subprocess.run(['git', '-C', str(f.baseline), 'add', '.gitignore'], check=True)
+        subprocess.run(['git', '-C', str(f.baseline), 'commit', '-qm', 'ignore historical scratch'], check=True)
+        destination = f.root / 'copy'
+        workflow.copy_baseline(f.baseline, destination)
+        self.assertFalse((destination / '.agent-artifacts').exists())
+        self.assertFalse((destination / 'nested/.agent-artifacts').exists())
+        self.assertEqual((f.baseline / '.agent-artifacts/old/blob').read_text(), 'historical evidence')
+
+    def test_baseline_copy_preserves_tracked_artifact_source_only(self):
+        f = self.fixture()
+        directory = f.baseline / '.agent-artifacts'
+        directory.mkdir()
+        (directory / 'source.txt').write_text('tracked source')
+        (directory / 'old.bin').write_bytes(b'old')
+        subprocess.run(['git', '-C', str(f.baseline), 'add', '.agent-artifacts/source.txt'], check=True)
+        destination = f.root / 'copy'
+        workflow.copy_baseline(f.baseline, destination)
+        self.assertEqual((destination / '.agent-artifacts/source.txt').read_text(), 'tracked source')
+        self.assertFalse((destination / '.agent-artifacts/old.bin').exists())
+
     def setUp(self) -> None:
         self.assertIsNotNone(workflow, "workflow module is missing")
 

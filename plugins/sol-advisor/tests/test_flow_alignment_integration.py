@@ -15,9 +15,10 @@ run=load_run_check(); review=load_review_packet()
 SCRIPTS=Path(w.__file__).parent
 
 class StagedFixture(WorkflowFixture):
- def __init__(self,three=False,pre_required=True,per_stage_final=False):
+ def __init__(self,three=False,pre_required=True,per_stage_final=False,reviewers=None):
   super().__init__(staged=True)
   self.task=self.root/'flow-task'
+  if reviewers is not None:self.contract['review_policy']['reviewers_per_round']=reviewers
   self.contract['work_items']['b']['stage_key']='s1'
   self.contract['work_items']['c']={'paths':['a.txt'],'baseline_id':self.baseline_id,'stage_key':'s2'}
   cmd=[sys.executable,'-B','-c',"import sys; assert '--fail' not in sys.argv; from pathlib import Path; assert Path('a.txt').read_text() in ('a1\\n','c1\\n','d1\\n'); assert Path('b.txt').read_text()=='b1\\n'"]
@@ -76,9 +77,12 @@ class StagedFixture(WorkflowFixture):
   observed={'context_id':'synthetic-root','thread_id':'synthetic-root','role':'root','model':'fixture','effort':'high','observed_attestation':{'scope':scope,'observed_at':at}}
   authority={'root_authority_id':'root-'+stage,'contract_digest':self.contract['contract_digest'],'scope':scope,'observed_at':at,'expires_at':'2099-01-01T00:00:00Z','candidate_verify_receipt_id':vid,'candidate_verify_receipt_digest':vid,'issuer':{'role':'root','model':'fixture'},'observed_attestation':observed,'observed_attestation_digest':p.canonical_digest(observed)}
   a={'record_type':'A','acceptance_id':'A-'+stage,'status':'accepted','contract_digest':self.contract['contract_digest'],'accepted_stage_key':stage,'candidate_bridge_id':ctx.candidate_bridge['bridge_id'],'packet_id':ctx.packet['packet_id'],'verdict_id':ctx.verdict['verdict_id'],'final_candidate_evidence_id':e['evidence_id'],'root_authority_id':authority['root_authority_id'],'root_authority_scope':scope,'root_authority_expiry':authority['expires_at'],'candidate_verify_receipt_id':vid,'dependency_acceptance_ids':{key:'A-'+key for key in p._dependency_closure(self.contract,stage)}}
+  if hasattr(self,'review_round'):
+   a.update(review_round_id=self.review_round['round_id'],review_round_digest=self.review_round['round_digest'])
   files={key:self.root/(stage+'-'+key+'.json') for key in ['acceptance','final-evidence','root-authority']}
   for key,value in zip(files,[a,e,authority]):write_json(files[key],value)
   cmd=[sys.executable,str(SCRIPTS/'workflow.py'),'final-accept','--task-dir',str(self.task),'--op-id','accept-'+stage,'--expected-state-version',str(self.version()),'--trusted-observation-time',at]
+  if hasattr(self,'review_round'):cmd.extend(['--review-round-id',self.review_round['round_id']])
   for key,path in files.items():cmd.extend(['--'+key,str(path)])
   self.last_accept_command=cmd
   if crash_after_cas:
@@ -89,6 +93,68 @@ class StagedFixture(WorkflowFixture):
   return json.loads(result.stdout)
 
 class FlowIntegrationTests(unittest.TestCase):
+ def pool_fixture(self):
+  pool=w.review_round_tool();f=StagedFixture(reviewers=2);self.addCleanup(f.cleanup)
+  f.receive_work('a');f.receive_work('b')
+  ctx=f.challenge(f.packet(f.assemble('s1',{'a':'D-a-1','b':'D-b-1'}),'s1'),'s1')
+  ctx=f.reviewed(ctx,'s1',[f.check(ctx,'late','late-s1')])
+  value={'round_id':'round-s1','candidate_id':ctx.manifest['candidate_id'],'acceptance_digest':f.contract['contract_digest'],'scope':'s1','members':[],'dispositions':{}}
+  for i in range(2):
+   runtime={'thread_id':'synthetic-sol-s1' if i==0 else 'synthetic-sol-peer','agent_role':'sol_advisor_sol_reviewer','model':'gpt-6.1-sol','effort':'high','sandbox_policy_type':'read-only','permission_profile_type':'disabled','prompt_digest':f.contract['review_policy']['behavioral_read_only_prompt_digest']}
+   value['members'].append({'review_id':str(i),'runtime':runtime,'candidate_id':value['candidate_id'],'acceptance_digest':value['acceptance_digest'],'status':'valid','verdict':'ship','coverage_complete':True,'findings':[]})
+  return pool,f,ctx,value
+ def test_pool_peer_requires_existing_prompt_and_window_admission(self):
+  pool,f,ctx,value=self.pool_fixture()
+  value['members'][1]['runtime'].update(sandbox_policy_type='danger-full-access',behavioral_read_only=True)
+  value['members'][1]['runtime'].pop('prompt_digest')
+  with self.assertRaises((ValueError,w.WorkflowError)):pool.record(f.task,value)
+ def test_pool_peer_behavioral_window_valid_neighbor_and_drift_rejection(self):
+  pool,f,ctx,value=self.pool_fixture();member=value['members'][1]
+  member['runtime']['sandbox_policy_type']='danger-full-access';member['behavioral_window_id']='peer'
+  identity={'candidate_id':ctx.manifest['candidate_id'],'manifest_hash':ctx.candidate_bridge['manifest_hash'],'verify_receipt_digest':p.canonical_digest(ctx.candidate_verify_receipt)}
+  with self.assertRaises((ValueError,w.WorkflowError)):pool.record(f.task,value)
+  w.begin_reviewer_window(f.task,window_id='peer',candidate_identity=identity)
+  w.end_reviewer_window(f.task,window_id='peer',candidate_identity=identity,runtime_receipt=member['runtime'])
+  wrong=copy.deepcopy(value);wrong['members'][1]['runtime']['prompt_digest']='sha256:'+'2'*64
+  with self.assertRaises((ValueError,w.WorkflowError)):pool.record(f.task,wrong)
+  f.review_round=pool.record(f.task,value);f.accept(ctx,'s1')
+  path=f.task/'review-windows/peer/end.json';end=json.loads(path.read_text());end['context_id']='forged';write_json(path,end)
+  with self.assertRaises(w.WorkflowError):w._load_persisted_acceptance_context(f.task,'A-s1')
+ def test_pool_peer_cannot_reuse_design_reviewer_identity(self):
+  pool,f,ctx,value=self.pool_fixture()
+  runtime=value['members'][1]['runtime']
+  review.record_design_review(f.task,review={'record_type':'DR','review_id':'design-peer','status':'valid','design_verdict':'design-approved','contract_digest':f.contract['contract_digest']},reviewer_runtime_receipt=runtime,design_input={'mechanism':'exact patches'})
+  with self.assertRaises((ValueError,w.WorkflowError)):pool.record(f.task,value)
+ def test_all_raw_rejections_can_ship_after_root_rejects_out_of_scope_findings(self):
+  pool,f,ctx,value=self.pool_fixture()
+  for member in value['members']:
+   member.update(verdict='fix-first',findings=[{'finding_id':'f','scope':'future'}])
+   value['dispositions'][member['review_id']+':f']={'decision':'reject','reason':'future requirement outside stage s1'}
+  f.review_round=pool.record(f.task,value)
+  self.assertEqual(f.review_round['verdict'],'ship')
+  f.accept(ctx,'s1')
+ def test_pool_history_corruption_blocks_record_and_final_acceptance(self):
+  pool,f,ctx,value=self.pool_fixture();f.review_round=pool.record(f.task,value)
+  path=f.task/'review-rounds/round-s1.json';old=json.loads(path.read_text());old['members'][0]['runtime']['thread_id']='corrupted';write_json(path,old)
+  changed=copy.deepcopy(value);changed['round_id']='round-2'
+  with self.assertRaises((ValueError,w.WorkflowError)):pool.record(f.task,changed)
+  with self.assertRaises(AssertionError):f.accept(ctx,'s1')
+ def test_review_round_policy_blocks_single_v_then_accepts_complete_pool(self):
+  import importlib.util
+  spec=importlib.util.spec_from_file_location('round_tool',SCRIPTS/'review-round.py');pool=importlib.util.module_from_spec(spec);spec.loader.exec_module(pool)
+  f=StagedFixture(reviewers=2);self.addCleanup(f.cleanup);f.receive_work('a');f.receive_work('b')
+  ctx=f.challenge(f.packet(f.assemble('s1',{'a':'D-a-1','b':'D-b-1'}),'s1'),'s1')
+  ctx=f.reviewed(ctx,'s1',[f.check(ctx,'late','late-s1')])
+  with self.assertRaises(AssertionError):f.accept(ctx,'s1')
+  value={'round_id':'round-s1','candidate_id':ctx.manifest['candidate_id'],'acceptance_digest':f.contract['contract_digest'],'scope':'s1','members':[],'dispositions':{}}
+  for i in range(2):
+   runtime={'thread_id':'synthetic-sol-s1' if i==0 else 'synthetic-sol-peer','agent_role':'sol_advisor_sol_reviewer','model':'gpt-6.1-sol','effort':'high','sandbox_policy_type':'read-only','permission_profile_type':'disabled','prompt_digest':f.contract['review_policy']['behavioral_read_only_prompt_digest']}
+   value['members'].append({'review_id':str(i),'runtime':runtime,'candidate_id':value['candidate_id'],'acceptance_digest':value['acceptance_digest'],'status':'valid','verdict':'ship','coverage_complete':True,'findings':[]})
+  f.review_round=pool.record(f.task,value)
+  self.assertEqual(f.review_round,pool.record(f.task,value))
+  f.accept(ctx,'s1')
+  self.assertEqual(w.read_task(f.task)['state']['stage_status']['stage_key'],'s2')
+  self.assertEqual(w._load_persisted_acceptance_context(f.task,'A-s1').acceptance['review_round_digest'],f.review_round['round_digest'])
  def fixture(self):
   f=StagedFixture();self.addCleanup(f.cleanup);f.receive_work('a');f.receive_work('b');return f
  def test_two_stages_real_checks_review_and_final_accept_cli(self):

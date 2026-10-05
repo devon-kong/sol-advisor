@@ -237,14 +237,14 @@ pass "UI metadata exposes orchestration and its default route prompt"
 
 jq empty "$manifest"
 case "$(jq -r '.version' "$manifest")" in
-  0.8.3) ;;
-  *) fail "manifest version is not 0.8.3" ;;
+  0.9.0) ;;
+  *) fail "manifest version is not 0.9.0" ;;
 esac
 jq -e '.name == "sol-advisor" and (.plugins | length) == 1 and .plugins[0].name == "sol-advisor" and .plugins[0].source.source == "local" and .plugins[0].source.path == "./plugins/sol-advisor"' "$marketplace" >/dev/null || fail "marketplace metadata does not point to the sole local sol-advisor plugin"
 grep -Fq 'SELECTIVE ROUTE' "$manifest" || fail "manifest omits route declaration"
 jq -e '.interface.longDescription | contains("fail closed") and contains("combined candidate")' "$manifest" >/dev/null || fail "manifest omits full-v2 candidate/evidence fail-closed semantics"
 grep -Fq 'For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery.' "$manifest" || fail "manifest omits startup sequencing"
-pass "manifest JSON and v0.8.3 discovery copy"
+pass "manifest JSON and v0.9.0 discovery copy"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path
@@ -578,7 +578,10 @@ grep -Fq 'Before declaring a route, the root may read this skill and the referen
 grep -Fq 'Do not batch skill/reference loading with repository discovery or other task tools before' "$skill" || fail "skill permits batched pre-declaration discovery"
 grep -Fq 'No other task tool call may precede this declaration' "$skill" || fail "skill permits tool-before-route"
 grep -Fq 'Solo is the default' "$skill" || fail "skill omits solo default"
-grep -Fq 'One auxiliary agent is the default maximum' "$skill" || fail "skill omits auxiliary limit"
+grep -Fq 'One implementer is the default maximum' "$skill" || fail "skill omits delegate implementer limit"
+grep -Fq 'reviewers_per_round: 2' "$skill" || fail "skill omits default Reviewer pool"
+grep -Fq 'Never spawn N+1' "$skill" || fail "skill permits automatic extra Reviewer"
+grep -Fq 'Do not require or create project' "$skill" || fail "skill requires workspace artifacts"
 grep -Fq 'A later declaration may only escalate the route when newly' "$skill" || fail "skill omits escalation gate"
 grep -Fq 'never silently downgrade' "$skill" || fail "skill permits silent downgrade"
 grep -Fqi 'public metadata' "$skill" || fail "skill lacks public-metadata evidence rule"
@@ -717,6 +720,13 @@ all_test_output=$(PYTHONDONTWRITEBYTECODE=1 python3 "$strict_test_runner" --test
   --required-id test_candidate.CandidateToolTests.test_scoped_selection_is_explicit_versioned_and_binds_head_and_bytes \
   --required-id test_full_protocol.PublicRelationshipClosureTests.test_acceptance_recomputes_final_evidence_and_root_authority \
   --required-id test_workflow.WorkflowTests.test_assemble_recovers_artifacts_before_state_and_state_before_receipt \
+  --required-id test_workflow.WorkflowTests.test_assembly_does_not_create_or_copy_untracked_artifact_trees \
+  --required-id test_review_round.ReviewRoundTests.test_default_two_and_explicit_positive_counts \
+  --required-id test_review_round.ReviewRoundTests.test_corrupt_previous_round_cannot_hide_reused_identity \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_review_round_policy_blocks_single_v_then_accepts_complete_pool \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_pool_peer_behavioral_window_valid_neighbor_and_drift_rejection \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_pool_peer_cannot_reuse_design_reviewer_identity \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_all_raw_rejections_can_ship_after_root_rejects_out_of_scope_findings \
   --required-id test_run_check.RunCheckTests.test_timeout_kills_a_child_that_ignores_term \
   --required-id test_review_packet.ReviewPacketTests.test_record_review_requires_observed_sol_and_applies_ship_transition \
   --required-id test_behavioral_fixtures.BehavioralFixtureTests.test_full_v2_action_trace_grader_distinguishes_valid_and_invalid_mechanisms \
@@ -758,4 +768,4 @@ sh -n "$runtime_inspector"
 sh -n "$script_dir/verify.sh"
 pass "shell syntax"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor v0.8.3 full-v2 checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor v0.9.0 full-v2 checks completed in $tmp_dir"
