@@ -4,6 +4,16 @@ Sol Advisor is a Codex-only workflow for capability-routed software delivery. Yo
 provide the outcome and constraints; the root owns planning, implementation or
 delegation, verification, and acceptance.
 
+## Codex Cloud（中文手册）
+
+See [Codex Cloud 安装与使用手册](docs/codex-cloud-guide.zh-CN.md) for account-level
+personal plugin installation, new cloud task discovery, and the separate `cloud-full`
+adapter. The GitHub source remains `0.10.0`; the tested personal cloud package is
+`0.10.1`. This repository does not ship `cloud-adapter.md`, so cloning `main` or
+installing the native plugin alone does not enable `cloud-full`. Obtain an authorized
+cloud-adapted package first. Cloud review is behaviorally read-only on a shared
+filesystem; it does not provide enforced per-agent read-only isolation.
+
 ## Install from GitHub
 
 You need a current Codex CLI or ChatGPT desktop app with plugins enabled, native
