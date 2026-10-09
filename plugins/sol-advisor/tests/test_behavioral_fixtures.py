@@ -41,6 +41,42 @@ class BehavioralFixtureTests(unittest.TestCase):
             ]],
         }
 
+    def test_sequential_trace_budget_and_last_context_continuation(self):
+        grader = load("full-v2", "grader.py")
+        for budget in (1, 2, 3):
+            case = self.full_trace()
+            case["review_policy"] = {"review_strategy": "sequential-budget-v1", "max_reviewers": budget}
+            case["events"] = []
+            for index in range(budget + 1):
+                events = copy.deepcopy(self.full_trace()["events"])
+                for event in events:
+                    event["attempt_id"] = f"attempt-{index}"
+                    if "delivery_id" in event: event["delivery_id"] = f"D{index}"
+                    if "selected_delivery_ids" in event: event["selected_delivery_ids"] = [f"D{index}"]
+                    if "candidate_id" in event: event["candidate_id"] = f"C{index}"
+                    if "context_id" in event:
+                        event.update(context_id=f"R{min(index, budget-1)}", review_mode="fresh" if index < budget else "same-context",
+                                     completed_prior_remaining_scope=True, closed_prior_findings=True)
+                        if index < budget: event.update(verdict="fix-first", critical="fail")
+                case["events"].extend(events if index == budget else events[:-1])
+            self.assertTrue(grader.grade(case)["passed"], grader.grade(case))
+            extra = copy.deepcopy(case); extra["events"][-2]["context_id"] = "N+1"
+            self.assertFalse(grader.grade(extra)["passed"])
+            unclosed = copy.deepcopy(case); unclosed["events"][-2]["closed_prior_findings"] = False
+            self.assertFalse(grader.grade(unclosed)["passed"])
+            if budget > 1:
+                reused = copy.deepcopy(case); reused["events"][7]["context_id"] = "R0"
+                self.assertFalse(grader.grade(reused)["passed"])
+
+    def test_sequential_trace_first_ship_and_invalid_budget(self):
+        grader = load("full-v2", "grader.py")
+        case = self.full_trace(); case["review_policy"] = {"review_strategy": "sequential-budget-v1"}
+        case["events"][-2]["review_mode"] = "fresh"
+        self.assertTrue(grader.grade(case)["passed"])
+        for budget in (True, 0, -1, "2"):
+            bad = copy.deepcopy(case); bad["review_policy"]["max_reviewers"] = budget
+            self.assertFalse(grader.grade(bad)["passed"])
+
     def test_full_trace_requires_complete_ordered_delivery_chain(self):
         grader = load("full-v2", "grader.py")
         valid = self.full_trace()

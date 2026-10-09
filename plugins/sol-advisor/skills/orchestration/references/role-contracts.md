@@ -123,7 +123,7 @@ Act as Sol Advisor's explicit high-complexity escalation worker. Resolve the sup
 specification within the settled architecture, preserve every stated interface and
 constraint, and surface ambiguity instead of redesigning the architecture. Deliver as a
 peer implementer only: do not act as lead, integrator, reviewer, or acceptance authority.
-Root owns planning/state/acceptance; full-only challenge and fresh Sol review follow
+Root owns planning/state/acceptance; full-only challenge and candidate-bound Sol review follow
 full-workflow.md after your released delivery is candidate-bound.
 
 <paste and complete the Shared implementation contract>
@@ -147,7 +147,7 @@ Prompt:
 
 ~~~text
 ROLE
-Act as the fresh final reviewer. Remain strictly read-only: do not edit files, implement
+Act as the read-only reviewer for the supplied review policy. Remain strictly read-only: do not edit files, implement
 fixes, or broaden scope.
 
 For `full`, start with the stated high-value contract counterexamples, then complete the
@@ -155,7 +155,7 @@ scope review. Treat design approval, stage progress, and final V/A as separate. 
 product response uses the verdict triad; a design response uses DESIGN_VERDICT with
 design-approved instead of ship. Unavailable/invalid is separate status. P3 owns the
 same-observed-context challenge handshake and CR/V publication; do not invent or write it.
-A correction requires a new fresh review.
+A correction requires a new candidate-bound review under the frozen sequential or historical policy.
 
 For a staged full task, the packet identifies the stage and its review scope. Check
 the actual cumulative candidate, including accepted upstream behavior affected by this
@@ -225,7 +225,8 @@ FINDINGS: <structured findings above, or none>
 RESIDUAL RISK: <most important remaining risk, or none>
 ~~~
 
-If any fix is made after a valid review, discard its verdict and run a new fresh review. Use
+If any fix is made after a valid review, discard its verdict and review the new candidate with
+the next fresh Reviewer, or the last Reviewer continuation once the sequential budget is reached. Use
 observed isolation, not requested isolation; operations.md defines the stop conditions.
 
 For a new full contract that explicitly selects `SA-REVIEW-ATTESTATION-1`, the runtime
@@ -236,13 +237,24 @@ DR additionally receives a canonical non-secret design input; its digest and rev
 attestation must be persisted by the Root-side tool. Historical reviews remain historical and
 cannot be converted into tagged evidence for different bytes.
 
-## Independent Reviewer round contract
+## Sequential Reviewer cycle contract (new tasks)
 
-Root selects the round count (default 2; user positive-integer override). Each Reviewer
-receives the same acceptance basis and candidate, with a fresh context and read-only
-instructions. It receives no peer result and never votes on another Reviewer's findings.
-Each returns its own complete status, verdict, coverage and findings. Every blocking finding
-must state REQUIREMENT, EVIDENCE, IMPACT and SCOPE; cite current acceptance, not a new
-standard. Root adjudicates and groups duplicate causes after independent returns. Do not
-create another Reviewer to resolve disagreement. A fix requires a new round of N fresh
-Reviewers; all old round verdicts become inapplicable to changed bytes.
+Root sets `review_strategy: sequential-budget-v1` and `max_reviewers` (default 2).
+Pass REVIEW_MODE fresh|same-context, stage/cycle identity, current candidate/basis,
+identity slot/budget, and the complete inherited finding/closure record in every prompt.
+Initially spawn only Reviewer 1. A complete ship can close immediately. On correction,
+spawn the next fresh identity while slots remain; after N identities, resume only Reviewer N.
+Every continuation is read-only, observes a new exact candidate/window, and returns a new
+status-first result. Authorised same-context continuation alone is not invalid status.
+
+Review the cumulative change set and all inherited valid blockers; closure requires actual
+current-candidate evidence. Do not repeat all unaffected checks automatically. Preserve prior
+failures, review IDs, unreviewed scope and counterevidence. Root accepts only complete current
+coverage with no open valid blockers, then proceeds to the next dependent stage. No automatic
+N+1 Reviewer and no recurring approval for an already authorised correction cycle. If the
+last Reviewer is unavailable, recover it or report the lane blocked without exceeding budget.
+
+Design review is not automatically allocated, cannot substitute for product review, and needs
+its scope and separate budget settled if explicitly requested. Historical contracts naming
+`reviewers_per_round` keep independent same-candidate pools with all-fresh correction rounds;
+contracts without either policy keep single-V semantics. Never reinterpret their evidence.

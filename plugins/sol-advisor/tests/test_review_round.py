@@ -122,4 +122,104 @@ class ReviewRoundTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.tool.aggregate(value)
 
 
+class SequentialReviewTests(unittest.TestCase):
+    def setUp(self):
+        self.tool = module()
+
+    def step(self, number, reviewer, *, previous=(), budget=None, verdict='ship',
+             candidate=None, closures=None):
+        candidate = candidate or f'C{number}'
+        item = member(reviewer, verdict)
+        item['review_id'] = f'r{number}'
+        item['candidate_id'] = candidate
+        value = {'review_strategy': 'sequential-budget-v1', 'round_id': f'step-{number}',
+                 'candidate_id': candidate, 'acceptance_digest': 'A1', 'scope': 'final',
+                 'members': [item], 'dispositions': {}, 'closure_dispositions': closures or {},
+                 'previous_round_id': previous[-1]['round_id'] if previous else None,
+                 'previous_round_digest': previous[-1]['round_digest'] if previous else None}
+        if budget is not None:
+            value['max_reviewers'] = budget
+        if verdict != 'ship':
+            item['findings'] = [{'finding_id': 'f', 'class': 'implementation',
+                'requirement': 'preserve caller budget', 'evidence': 'caller deadline changed',
+                'impact': 'request extends deadline', 'scope': 'final',
+                'required_outcome': 'retain original deadline'}]
+            value['dispositions'][f'r{number}:f'] = {'decision': 'accept', 'reason': 'violates contract'}
+        return value
+
+    def resolved(self, *numbers):
+        return {f'step-{n}:r{n}:f': {'decision': 'resolved', 'evidence': 'current candidate deadline check passed'}
+                for n in numbers}
+
+    def aggregate(self, value, previous=()):
+        return self.tool.aggregate(value, previous=previous)
+
+    def test_first_ship_uses_one_reviewer_with_default_budget_two(self):
+        result = self.aggregate(self.step(1, 0))
+        self.assertEqual(result['verdict'], 'ship')
+        self.assertEqual(result['max_reviewers'], 2)
+        self.assertEqual(result['review_mode'], 'fresh')
+
+    def test_two_rejections_then_same_second_context_can_ship_new_candidate(self):
+        first = self.aggregate(self.step(1, 0, verdict='fix-first'))
+        second = self.aggregate(self.step(2, 1, previous=[first], verdict='fix-first', closures=self.resolved(1)), [first])
+        last = self.aggregate(self.step(3, 1, previous=[first, second], closures=self.resolved(1, 2)), [first, second])
+        self.assertEqual(last['verdict'], 'ship')
+        self.assertEqual(last['review_mode'], 'same-context')
+        self.assertEqual(len(last['reviewer_identities']), 2)
+
+    def test_configured_three_uses_third_fresh_then_continues_third(self):
+        history = []
+        for n, reviewer in [(1, 0), (2, 1), (3, 2), (4, 2)]:
+            result = self.aggregate(self.step(n, reviewer, previous=history, budget=3,
+                verdict='fix-first' if n < 4 else 'ship', closures=self.resolved(*range(1, n))), history)
+            history.append(result)
+        self.assertEqual(history[2]['review_mode'], 'fresh')
+        self.assertEqual(history[3]['review_mode'], 'same-context')
+        self.assertEqual(history[3]['verdict'], 'ship')
+
+    def test_no_early_reuse_extra_reviewer_or_return_to_first(self):
+        first = self.aggregate(self.step(1, 0, verdict='fix-first'))
+        with self.assertRaises(ValueError):
+            self.aggregate(self.step(2, 0, previous=[first], closures=self.resolved(1)), [first])
+        second = self.aggregate(self.step(2, 1, previous=[first], verdict='fix-first', closures=self.resolved(1)), [first])
+        for reviewer in (0, 2):
+            with self.subTest(reviewer=reviewer), self.assertRaises(ValueError):
+                self.aggregate(self.step(3, reviewer, previous=[first, second], closures=self.resolved(1, 2)), [first, second])
+
+    def test_unclosed_prior_blocker_cannot_disappear_on_reviewer_change(self):
+        first = self.aggregate(self.step(1, 0, verdict='fix-first'))
+        with self.assertRaises(ValueError):
+            self.aggregate(self.step(2, 1, previous=[first]), [first])
+        value = self.step(2, 1, previous=[first], closures={'step-1:r1:f': {'decision': 'open'}})
+        self.assertEqual(self.aggregate(value, [first])['verdict'], 'fix-first')
+        value['closure_dispositions']['step-1:r1:f'] = {'decision': 'resolved', 'evidence': ''}
+        with self.assertRaises(ValueError): self.aggregate(value, [first])
+
+    def test_history_tamper_omission_and_fork_fail_closed(self):
+        first = self.aggregate(self.step(1, 0, verdict='fix-first'))
+        second = self.aggregate(self.step(2, 1, previous=[first], verdict='fix-first', closures=self.resolved(1)), [first])
+        good = self.step(3, 1, previous=[first, second], closures=self.resolved(1, 2))
+        for old in ([], [second], [dict(first, candidate_id='tampered'), second]):
+            with self.subTest(history=old), self.assertRaises(ValueError): self.aggregate(good, old)
+        fork = self.step(3, 1, previous=[first], closures=self.resolved(1))
+        with self.assertRaises(ValueError): self.aggregate(fork, [first, second])
+
+    def test_budget_one_continues_first_and_rejects_new_identity(self):
+        first = self.aggregate(self.step(1, 0, budget=1, verdict='fix-first'))
+        self.assertEqual(self.aggregate(self.step(2, 0, budget=1, previous=[first], closures=self.resolved(1)), [first])['verdict'], 'ship')
+        with self.assertRaises(ValueError): self.aggregate(self.step(2, 1, budget=1, previous=[first], closures=self.resolved(1)), [first])
+
+    def test_invalid_budget_basis_identity_or_incomplete_review_never_ships(self):
+        for budget in (True, 0, -1, '3', 1.5):
+            with self.subTest(budget=budget), self.assertRaises(ValueError): self.aggregate(self.step(1, 0, budget=budget))
+        for status in ('invalid', 'unavailable'):
+            value = self.step(1, 0); value['members'][0].update(status=status, verdict=None)
+            self.assertIsNone(self.aggregate(value)['verdict'])
+        value = self.step(1, 0); value['members'][0]['coverage_complete'] = False
+        self.assertIsNone(self.aggregate(value)['verdict'])
+        value = self.step(1, 0); value['members'][0]['candidate_id'] = 'stale'
+        with self.assertRaises(ValueError): self.aggregate(value)
+
+
 if __name__ == '__main__': unittest.main()

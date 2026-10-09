@@ -59,7 +59,7 @@ Checks have different purposes. Cheap pre-review checks establish that the candi
 worth reviewing; required pre-ship checks must be complete before ship. Sol starts with
 independent critical challenges, then finishes the remaining review and any required late
 checks in the same context. An early rejection reports related findings together and names
-unreviewed scope. The next fresh review must cover that remaining scope as well as the fix.
+unreviewed scope. The next candidate-bound review must cover that remaining scope as well as the fix.
 Tool commands that record or run these checks do not make Root a second technical reviewer.
 
 `task-contract.json` is canonical immutable with `contract_digest`, goal, authority,
@@ -170,10 +170,10 @@ exact scope plus harness/input/runtime/platform/executable/interpreter identity 
 logs.
 
 `fix-first` invalidates the candidate/verdict. Sol implementer corrects only released ownership, Root
-binds/verifies the changed candidate, and a fresh Sol review follows. For corrected P2 candidates,
-review admission checks both observed thread and context against the complete rejection
-ancestry. Reuse of either identity, or missing identity needed to prove independence,
-refuses the new review. Live consumers bind that ancestry to persisted verdict records,
+binds/verifies the changed candidate, and policy-selected Sol review follows. New sequential
+contracts advance through fresh identities until max_reviewers is reached, then resume only
+the last Reviewer. Historical policies reject reused correction identities. All policies
+require exact observed thread/context, current-candidate coverage and full rejection closure. Live consumers bind that ancestry to persisted verdict records,
 including accepted dependency stages. Same-candidate evidence continuation and exact
 operation replay remain valid; P1 historical interpretation is unchanged. Design approval, stage
 progress, or a packet is not readiness. Missing native identity/continuation/isolation,
@@ -186,7 +186,7 @@ Historical `SA-REVIEW-ATTESTATION-1` keeps its original meaning and cannot newly
 broad host. New P2 contracts use `SA-REVIEW-ATTESTATION-2`, choosing hard-read-only or
 explicit `hard-or-behavioral` before review. Hard-required tasks never fall back.
 
-For behavioral mode, Root begins the observation before dispatching the fresh Sol and
+For behavioral mode, Root begins the observation before dispatching or continuing Sol and
 ends it after the response. The tools bind the actual role/model/effort, observed sandbox,
 permission profile, exact dispatched prompt digest and candidate. An observed thread ID
 is the context fallback when the host supplies no separate context ID. Root supplies the
@@ -220,28 +220,39 @@ P2 contract admission requires an applicable final identity check for every stag
 `final_candidate_verify: true` checks must use candidate scope and pre-ship phase; the
 runner still executes them only after V. Invalid placement or missing coverage fails early.
 
-## Orchestration review rounds (0.9.0)
+## Sequential review cycles (0.10.0)
 
-New contracts add review_policy.reviewers_per_round (default 2, any requested positive
-integer). Keep P/CR/V/A single-record schemas: one selected member supplies the canonical
-V, while Root records the complete independent pool with review-round.py. This is a Root
-acceptance gate, not voting or a multi-attestation protocol. Each member performs its own
-critical challenge and full remaining review; do not share peer conclusions before returns.
-All members inspect the same CB/candidate/contract/scope. Final-accept requires a persisted
-ship round with exactly N complete valid, unique native contexts and all findings adjudicated;
-A binds review_round_id and review_round_digest. Its selected ship V must match a complete valid member's observed identity; the member's
-original findings/verdict remain intact. Root may reject unsupported findings with evidence,
-then continue the selected member in the same context to obtain the canonical ship V on the
-settled acceptance basis. This uses the original N contexts and is never an N+1 tie-breaker. A round blocker or missing member cannot be overridden by selecting a
-ship V. Corrections require a new round with all fresh identities. Historical contracts
-without this policy keep their original single-V semantics; do not edit them in place.
+New P2 contracts declare `review_policy.review_strategy: sequential-budget-v1` and
+`max_reviewers: 2` (or any positive user budget). One stage has one linear review cycle,
+not parallel voting or an exact-count pool. Reviewer 1 starts fresh and may ship immediately.
+After a rejection and verified correction, Reviewer 2 starts fresh; with a budget of 3,
+Reviewer 3 follows the next correction. After the budget is reached, the last Reviewer
+continues further corrections. No N+1 identity; an unavailable last Reviewer needs recovery
+or an honest blocked lane. A new stage uses fresh product identity and its own budget.
 
-Task records default to one private external OS temporary directory. No project artifact
-root or persistent archive is required. Missing temporary inputs stop resume/acceptance.
-Explicit durable external storage remains possible for tasks that need it. Existing records
-and old artifact paths retain their meanings and are never deleted by this migration.
+Each review is a new current-candidate V with the unchanged status/verdict triad. Corrections
+invalidate old verdicts, while budget-authorised continuation can produce valid/ship. Review
+all inherited blockers, affected behavior and unreviewed scope; do not transfer old greens
+or force unaffected reruns. Root uses review-round.py to persist each one-member step with
+its exact V/runtime/context, candidate/basis, predecessor step ID/digest and cumulative
+finding dispositions. Record rejection steps before reviewing their corrected successors.
+The V recorder automatically binds reviewed_candidate_id, a trusted review_sequence and
+compact review_history from the persisted step chain, including invalid/unavailable identities.
+Caller-supplied conflicting metadata is rejected. Identity history determines the budget;
+valid rejection ancestry independently determines inherited blockers. Neither replaces the other.
+Full admission checks the observed native identity, permission profile and a new behavioral
+window when required, including last-Reviewer continuations. Root acceptance and recovery
+bind the latest complete ship step and canonical V, all current-candidate evidence and
+all historical closures. Steps cannot hide earlier findings, omit/fork history or expand
+an identity budget. Design review stays separate; do not allocate it automatically or count
+its DR as product acceptance.
 
-Every member uses the existing tagged prompt/isolation admission. Broad-host peers require
-Root's persisted begin/end windows, not a read-only boolean. Close all windows before V/round
-publication. Full admission rechecks window digests/bindings, prior-round integrity and
-separation from design/prior-candidate contexts at record, final acceptance and recovery.
+Historical 0.9.0 contracts with reviewers_per_round keep independent same-candidate pools,
+exactly N complete valid contexts and all-fresh correction rounds; contracts without either
+policy keep historical single-V semantics. Explicit migration creates a new immutable
+contract/digest, preserves prior records and rebinds the current candidate/evidence.
+Do not edit old contracts or convert old invalid reviews into valid results in place.
+
+Task records stay in one private external temporary directory. Missing temporary inputs
+stop resume/acceptance; select explicit durable external storage when needed. No project
+artifact root, full-workspace copy per Reviewer, or historical cleanup is introduced.

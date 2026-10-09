@@ -1,13 +1,9 @@
 # Full-v2 local usage
 
-This document describes the unreleased 0.8.0 source tree. It does not prove that an existing
-Codex task has hot-loaded these files.
-
-> New full tasks use `SA-FULL-V2-P2`; active P1 tasks retain their old interpretation.
-> The flow-alignment revision has new integration tests and an explicit behavioral review
-> path. Its current verification/review status is in `FINAL-REPORT.md` and the retained
-> `.agent-artifacts/20260922-flow-alignment/` evidence. Earlier 162-test snapshots and
-> historical reviews do not approve these new bytes. No production installation occurred.
+This document describes the 0.10.0 source workflow. Source changes do not hot-load an
+existing Codex task or update an installed plugin. New full tasks use SA-FULL-V2-P2 with
+an explicit sequential review policy; existing contracts retain their original semantics.
+Historical release/verification reports remain historical and do not approve these bytes.
 
 ## Route behavior
 
@@ -34,13 +30,13 @@ test failures stay in the responsible Sol implementer's repair loop.
   instances; no Sol implementer leads, aggregates or accepts another Sol implementer.
 - Each Sol implementer returns its own M/D/delivery-E and stops writes. Deterministic tools select exact
   attempts and assemble bytes; they never perform a semantic merge or select the “best” result.
-- One fresh Sol context checks critical risks and, if they pass, completes the remaining stage
+- The current policy-selected Sol context checks critical risks and, if they pass, completes the remaining stage
   scope. Sol returns data and does not write product/artifacts. Root-side tools publish challenge,
   CR and V records.
-- A fix creates a new delivery/candidate and needs a fresh review. P2 checks both reviewer
-  thread and context against persisted rejection ancestry; reusing either identity or lacking
-  the identity needed to establish independence is refused. Same-candidate evidence continuation
-  and exact replay remain valid. Design approval is never code approval.
+- A fix creates a new delivery/candidate and needs a new candidate-bound result. New
+  sequential cycles advance to the next fresh Reviewer while slots remain, then resume
+  the last Reviewer. Historical policies retain fresh-after-correction admission.
+
 
 ## Tool entry points
 
@@ -86,7 +82,49 @@ The offline action-trace grader requires ordered `stages` with `stage_key` and r
 `work_keys`. Lifecycle events bind `stage_key`/`attempt_id`, with delivery and candidate
 identities linking each handoff. It reports `compliant`, `complete`, and `status` separately:
 a valid prefix is `incomplete` with `passed: false`; only all declared stages accepted in
-order can pass. This calibrates trace evaluation, not native Agent behavior or runtime V/A.
+order can pass. Sequential traces explicitly set review_policy.review_strategy and the
+optional max_reviewers budget, label each review fresh or same-context, and show prior
+findings/remaining scope closed before ship. Traces without this policy retain historical
+fresh-after-correction semantics. This calibrates trace evaluation, not native Agent
+behavior or runtime V/A.
+
+## Sequential product review budget
+
+New full contracts keep the existing identity/isolation fields and add:
+
+~~~json
+"review_strategy": "sequential-budget-v1",
+"max_reviewers": 2
+~~~
+
+Any positive budget is supported; omission of max_reviewers under this strategy defaults
+to 2. This counts distinct product Reviewer identities per stage, not review attempts.
+Reviewer 1 may ship immediately. After rejection and verified correction, Reviewer 2
+starts fresh; with a budget of 2, subsequent corrections return to Reviewer 2. With 3,
+Reviewer 3 starts after Reviewer 2's rejection/correction and handles all later corrections.
+No automatic extra identity. A valid same-context result is permitted, labelled honestly
+and bound to the exact new candidate. Check inherited findings, affected consumers and
+unreviewed scope before accepting; do not force unrelated reruns or erase failures.
+
+Publish each V using record-review, then persist its one-member step with review-round.py
+record. A step includes review_strategy, round_id, scope (stage_key), current candidate_id,
+acceptance_digest, one member with review_id/verdict_id/runtime/status/verdict/coverage/findings,
+dispositions and closure_dispositions. The first step has null previous_round_id and
+previous_round_digest; successors bind both fields to the prior immutable step. Every
+historical accepted finding needs an open, resolved-with-evidence or rejected-with-evidence
+closure. Persist rejection steps before publishing the successor review V. Root passes
+--review-round-id with the latest complete ship step to final-accept; acceptance and
+recovery recheck current bytes, canonical V, all history, coverage and closures.
+
+The recorder binds review_sequence, reviewed_candidate_id and complete review_history
+from persisted steps automatically, including non-valid Reviewer attempts. Caller-forged
+history is rejected; identity budget and valid rejection closure are separate checks.
+
+Historical reviewers_per_round contracts retain exact N independent fresh same-candidate
+members and all-fresh correction rounds; contracts with neither policy retain single-V
+behavior. Do not combine the old pool count with the new identity budget, edit old
+contracts in place, or relabel old invalid returns. Design reviews have a separate scope
+and are never automatically allocated or substituted for product acceptance.
 
 ## Stages, late checks and new probes
 
@@ -130,7 +168,7 @@ private run directory, and network is denied. Another interpreter or missing san
 refuses dynamic probe execution; it does not weaken the policy. Sol never edits product.
 
 For explicit behavioral review under `SA-REVIEW-ATTESTATION-2`, Root calls
-`begin-behavioral-window` before native reviewer dispatch. After the response, Root
+`begin-behavioral-window` before native reviewer dispatch or each new-candidate continuation. After the response, Root
 supplies the observed native runtime and the same `--behavioral-window-id` to
 `record-review`. Existing evidence/log bytes are protected, while new immutable checks may
 append. `end-behavioral-window` can close the interval explicitly; exact retries are
@@ -145,7 +183,9 @@ require different observed native contexts. A design-approved DR never authorize
 
 The contracted prompt digest binds the initial read-only reviewer instructions. Subsequent
 messages may deliver requested evidence within that authority; a change to permissions or
-review scope needs a new contract/window, not an evidence-only continuation.
+review scope needs a new contract/window, not an evidence-only continuation. A
+sequential correction uses a new candidate/window while preserving the approved scope
+and last Reviewer identity; it never carries an old verdict to new bytes.
 
 After V and the distinct final candidate identity check, Root calls:
 
@@ -277,7 +317,8 @@ python3 plugins/sol-advisor/scripts/review-packet.py record-design-review \
 
 A valid design `design-approved` permits implementation to start; it is not product approval.
 The eventual code candidate must be reviewed by a different fresh Sol context. A correction creates
-a new candidate and another fresh implementation review.
+a new candidate and the next policy-selected product review; this can be the last
+Reviewer continuing after its identity budget is reached.
 
 ### Interrupted mutation and recovery
 

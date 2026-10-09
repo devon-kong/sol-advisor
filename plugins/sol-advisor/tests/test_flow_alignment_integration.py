@@ -15,10 +15,11 @@ run=load_run_check(); review=load_review_packet()
 SCRIPTS=Path(w.__file__).parent
 
 class StagedFixture(WorkflowFixture):
- def __init__(self,three=False,pre_required=True,per_stage_final=False,reviewers=None):
+ def __init__(self,three=False,pre_required=True,per_stage_final=False,reviewers=None,sequential_budget=None):
   super().__init__(staged=True)
   self.task=self.root/'flow-task'
   if reviewers is not None:self.contract['review_policy']['reviewers_per_round']=reviewers
+  if sequential_budget is not None:self.contract['review_policy'].update(review_strategy='sequential-budget-v1',max_reviewers=sequential_budget)
   self.contract['work_items']['b']['stage_key']='s1'
   self.contract['work_items']['c']={'paths':['a.txt'],'baseline_id':self.baseline_id,'stage_key':'s2'}
   cmd=[sys.executable,'-B','-c',"import sys; assert '--fail' not in sys.argv; from pathlib import Path; assert Path('a.txt').read_text() in ('a1\\n','c1\\n','d1\\n'); assert Path('b.txt').read_text()=='b1\\n'"]
@@ -93,6 +94,170 @@ class StagedFixture(WorkflowFixture):
   return json.loads(result.stdout)
 
 class FlowIntegrationTests(unittest.TestCase):
+ def test_sequential_first_ship_public_acceptance_and_recovery(self):
+  pool=w.review_round_tool();f=StagedFixture(sequential_budget=2);self.addCleanup(f.cleanup)
+  f.receive_work('a');f.receive_work('b')
+  ctx=f.challenge(f.packet(f.assemble('s1',{'a':'D-a-1','b':'D-b-1'}),'s1'),'s1')
+  ctx=f.reviewed(ctx,'s1',[f.check(ctx,'late','late-s1')])
+  runtime={'thread_id':'synthetic-sol-s1','agent_role':'sol_advisor_sol_reviewer','model':'gpt-6.1-sol','effort':'high','sandbox_policy_type':'read-only','permission_profile_type':'disabled','prompt_digest':f.contract['review_policy']['behavioral_read_only_prompt_digest']}
+  value={'review_strategy':'sequential-budget-v1','round_id':'first-ship','candidate_id':ctx.manifest['candidate_id'],'acceptance_digest':f.contract['contract_digest'],'scope':'s1','previous_round_id':None,'previous_round_digest':None,'closure_dispositions':{},'dispositions':{},'members':[{'review_id':'first','verdict_id':ctx.verdict['verdict_id'],'runtime':runtime,'candidate_id':ctx.manifest['candidate_id'],'acceptance_digest':f.contract['contract_digest'],'status':'valid','verdict':'ship','coverage_complete':True,'findings':[]}]}
+  with self.assertRaises(AssertionError):f.accept(ctx,'s1')
+  f.review_round=pool.record(f.task,value)
+  self.assertEqual(f.review_round['review_mode'],'fresh')
+  self.assertEqual(f.review_round,pool.record(f.task,value))
+  f.accept(ctx,'s1')
+  recovered=w._load_persisted_acceptance_context(f.task,'A-s1')
+  self.assertEqual(recovered.acceptance['review_round_digest'],f.review_round['round_digest'])
+  path=f.task/'review-rounds/first-ship.json';corrupt=json.loads(path.read_text());corrupt['max_reviewers']=3;write_json(path,corrupt)
+  with self.assertRaises(w.WorkflowError):w._load_persisted_acceptance_context(f.task,'A-s1')
+ def test_sequential_correction_uses_budget_then_last_reviewer_through_cli(self):
+  for budget in (1,2,3):
+   with self.subTest(budget=budget):
+    pool=w.review_round_tool();f=StagedFixture(sequential_budget=budget);self.addCleanup(f.cleanup)
+    f.receive_work('a');f.receive_work('b');history=[];predecessors={}
+    for index in range(budget+1):
+     if index:
+      f.receive('a',index+1,expected=f.version(),content=['a1\n','c1\n','d1\n','a1\n'][index])
+     ctx=f.assemble('s1',{'a':f'D-a-{index+1}','b':'D-b-1'},op_id=f'seq-assemble-{index}')
+     ctx=f.packet(ctx,'s1',op_id=f'seq-packet-{index}',predecessor_verdicts=predecessors)
+     ctx=f.challenge(ctx,f'seq-{index}')
+     ship=index==budget;reviewer=min(index,budget-1)
+     runtime={'thread_id':f'seq-t{reviewer}','context_id':f'seq-c{reviewer}','agent_role':'sol_advisor_sol_reviewer','model':'gpt-6.1-sol','effort':'high','sandbox_policy_type':'read-only','permission_profile_type':'disabled','prompt_digest':f.contract['review_policy']['behavioral_read_only_prompt_digest']}
+     late=[f.check(ctx,'late',f'seq-late-{index}')] if ship else []
+     finding={'finding_id':f'f{index}','class':'implementation','requirement':'preserve deadline','evidence':'synthetic review found extended deadline','impact':'request budget extended','scope':'s1','required_outcome':'retain deadline'}
+     v={'record_type':'V','verdict_id':f'V-seq-{index}','contract_digest':f.contract['contract_digest'],'status':'valid','verdict':'ship' if ship else 'fix-first','packet_id':ctx.packet['packet_id'],'candidate_bridge_id':ctx.candidate_bridge['bridge_id'],'challenge_receipt_id':ctx.challenge_receipt['challenge_receipt_id'],'rejection_closure':sorted(predecessors),'rejection_dispositions':{key:'resolved' for key in predecessors},'coverage_complete':ship}
+     if ship:v.update(open_rejections=[],pre_ship_evidence_ids=[item['evidence_id'] for item in late],reviewed_at=datetime.now(timezone.utc).isoformat().replace('+00:00','Z'))
+     else:v['blocking_findings']=[finding]
+     if index:
+      # Reusing the first context early or spawning beyond the cap must fail before publication.
+      bad=dict(runtime,thread_id='seq-t0',context_id='seq-c0') if index<budget else dict(runtime,thread_id='extra-thread',context_id='extra-context')
+      with self.assertRaises(w.WorkflowError):review.record_review(f.task,op_id=f'seq-bad-{index}',expected_state_version=f.version(),relationship=ctx,verdict=v,reviewer_runtime_receipt=bad,pre_ship_evidence=late)
+      self.assertFalse((f.task/'operation-intent'/f'seq-bad-{index}.json').exists())
+     ctx=review.record_review(f.task,op_id=f'seq-review-{index}',expected_state_version=f.version(),relationship=ctx,verdict=v,reviewer_runtime_receipt=runtime,pre_ship_evidence=late)['context']
+     self.assertIsInstance(ctx.verdict['review_sequence'],int)
+     self.assertEqual(len(ctx.verdict['review_history']),index)
+     value={'review_strategy':'sequential-budget-v1','round_id':f'seq-step-{index}','candidate_id':ctx.manifest['candidate_id'],'acceptance_digest':f.contract['contract_digest'],'scope':'s1','previous_round_id':history[-1]['round_id'] if history else None,'previous_round_digest':history[-1]['round_digest'] if history else None,'closure_dispositions':{f'seq-step-{n}:review-{n}:f{n}':{'decision':'resolved','evidence':'new candidate focused deadline check'} for n in range(index)},'dispositions':{} if ship else {f'review-{index}:f{index}':{'decision':'accept','reason':'violates preserved deadline'}},'members':[{'review_id':f'review-{index}','verdict_id':ctx.verdict['verdict_id'],'runtime':runtime,'candidate_id':ctx.manifest['candidate_id'],'acceptance_digest':f.contract['contract_digest'],'status':'valid','verdict':ctx.verdict['verdict'],'coverage_complete':ship,'findings':[] if ship else [finding]}]}
+     record=pool.record(f.task,value);history.append(record)
+     if not ship:predecessors[ctx.verdict['verdict_id']]=ctx.verdict
+    f.review_round=history[-1]
+    self.assertEqual(f.review_round['review_mode'],'same-context')
+    self.assertEqual(len(f.review_round['reviewer_identities']),budget)
+    f.accept(ctx,'s1')
+    self.assertEqual(w._load_persisted_acceptance_context(f.task,'A-s1').relationship.verdict['reviewer_thread_id'],f'seq-t{budget-1}')
+    # History drift must also fail through the persisted acceptance recovery consumer.
+    path=f.task/'review-rounds/seq-step-0.json';bad=json.loads(path.read_text());bad['members'][0]['runtime']['thread_id']='forged';write_json(path,bad)
+    with self.assertRaises(w.WorkflowError):w._load_persisted_acceptance_context(f.task,'A-s1')
+ def test_sequential_nonvalid_history_counts_identity_and_rejects_forgery(self):
+  for budget in (2,):
+   with self.subTest(budget=budget):
+    pool=w.review_round_tool();f=StagedFixture(sequential_budget=budget);self.addCleanup(f.cleanup)
+    f.receive_work('a');f.receive_work('b');history=[];predecessors={}
+    for index in range(budget+1):
+     if index:
+      f.receive('a',index+1,expected=f.version(),content=['a1\n','c1\n','d1\n','a1\n'][index])
+     ctx=f.assemble('s1',{'a':f'D-a-{index+1}','b':'D-b-1'},op_id=f'seq-assemble-{index}')
+     ctx=f.packet(ctx,'s1',op_id=f'seq-packet-{index}',predecessor_verdicts=predecessors)
+     ctx=f.challenge(ctx,f'seq-{index}')
+     ship=index==budget;reviewer=min(index,budget-1)
+     runtime={'thread_id':f'seq-t{reviewer}','context_id':f'seq-c{reviewer}','agent_role':'sol_advisor_sol_reviewer','model':'gpt-6.1-sol','effort':'high','sandbox_policy_type':'read-only','permission_profile_type':'disabled','prompt_digest':f.contract['review_policy']['behavioral_read_only_prompt_digest']}
+     late=[f.check(ctx,'late',f'seq-late-{index}')] if ship else []
+     finding={'finding_id':f'f{index}','class':'implementation','requirement':'preserve deadline','evidence':'synthetic review found extended deadline','impact':'request budget extended','scope':'s1','required_outcome':'retain deadline'}
+     v={'record_type':'V','verdict_id':f'V-seq-{index}','contract_digest':f.contract['contract_digest'],'status':'valid','verdict':'ship' if ship else 'fix-first','packet_id':ctx.packet['packet_id'],'candidate_bridge_id':ctx.candidate_bridge['bridge_id'],'challenge_receipt_id':ctx.challenge_receipt['challenge_receipt_id'],'rejection_closure':sorted(predecessors),'rejection_dispositions':{key:'resolved' for key in predecessors},'coverage_complete':ship}
+     if ship:v.update(open_rejections=[],pre_ship_evidence_ids=[item['evidence_id'] for item in late],reviewed_at=datetime.now(timezone.utc).isoformat().replace('+00:00','Z'))
+     elif index == 0:v.update(status='unavailable',verdict=None)
+     else:v['blocking_findings']=[finding]
+     if index:
+      # Reusing the first context early or spawning beyond the cap must fail before publication.
+      bad=dict(runtime,thread_id='seq-t0',context_id='seq-c0') if index<budget else dict(runtime,thread_id='extra-thread',context_id='extra-context')
+      with self.assertRaises(w.WorkflowError):review.record_review(f.task,op_id=f'seq-bad-{index}',expected_state_version=f.version(),relationship=ctx,verdict=v,reviewer_runtime_receipt=bad,pre_ship_evidence=late)
+      self.assertFalse((f.task/'operation-intent'/f'seq-bad-{index}.json').exists())
+     if index:
+      for forged in ([], [{'round_id':'invented'}]):
+       with self.assertRaises(w.WorkflowError):review.record_review(f.task,op_id=f'seq-forged-{index}',expected_state_version=f.version(),relationship=ctx,verdict=dict(v,review_history=forged),reviewer_runtime_receipt=runtime,pre_ship_evidence=late)
+     ctx=review.record_review(f.task,op_id=f'seq-review-{index}',expected_state_version=f.version(),relationship=ctx,verdict=v,reviewer_runtime_receipt=runtime,pre_ship_evidence=late)['context']
+     self.assertIsInstance(ctx.verdict['review_sequence'],int)
+     self.assertEqual(len(ctx.verdict['review_history']),index)
+     value={'review_strategy':'sequential-budget-v1','round_id':f'seq-step-{index}','candidate_id':ctx.manifest['candidate_id'],'acceptance_digest':f.contract['contract_digest'],'scope':'s1','previous_round_id':history[-1]['round_id'] if history else None,'previous_round_digest':history[-1]['round_digest'] if history else None,'closure_dispositions':{f'seq-step-{n}:review-{n}:f{n}':{'decision':'resolved','evidence':'new candidate focused deadline check'} for n in range(1,index)},'dispositions':{} if ship or index==0 else {f'review-{index}:f{index}':{'decision':'accept','reason':'violates preserved deadline'}},'members':[{'review_id':f'review-{index}','verdict_id':ctx.verdict['verdict_id'],'runtime':runtime,'candidate_id':ctx.manifest['candidate_id'],'acceptance_digest':f.contract['contract_digest'],'status':ctx.verdict['status'],'verdict':ctx.verdict['verdict'],'coverage_complete':ship,'findings':[] if ship or index==0 else [finding]}]}
+     record=pool.record(f.task,value);history.append(record)
+     if not ship and index:predecessors[ctx.verdict['verdict_id']]=ctx.verdict
+    f.review_round=history[-1]
+    self.assertEqual(f.review_round['review_mode'],'same-context')
+    self.assertEqual(len(f.review_round['reviewer_identities']),budget)
+    f.accept(ctx,'s1')
+    self.assertEqual(w._load_persisted_acceptance_context(f.task,'A-s1').relationship.verdict['reviewer_thread_id'],f'seq-t{budget-1}')
+    # History drift must also fail through the persisted acceptance recovery consumer.
+    path=f.task/'review-rounds/seq-step-0.json';bad=json.loads(path.read_text());bad['members'][0]['runtime']['thread_id']='forged';write_json(path,bad)
+    with self.assertRaises(w.WorkflowError):w._load_persisted_acceptance_context(f.task,'A-s1')
+ def sequential_continuation_fixture(self,behavioral=False):
+  pool=w.review_round_tool();f=StagedFixture(sequential_budget=2);self.addCleanup(f.cleanup)
+  f.receive_work('a');f.receive_work('b')
+  original=f.challenge(f.packet(f.assemble('s1',{'a':'D-a-1','b':'D-b-1'}),'s1'),'s1')
+  identity={'candidate_id':original.manifest['candidate_id'],'manifest_hash':original.candidate_bridge['manifest_hash'],'verify_receipt_digest':p.canonical_digest(original.candidate_verify_receipt)}
+  records=[];contexts=[];runtime=None;late_first=None;version_first=None
+  for index in range(2):
+   window=f'window-{index}' if behavioral else None
+   if window:w.begin_reviewer_window(f.task,window_id=window,candidate_identity=identity)
+   late=f.check(original,'late',f'continuation-late-{index}')
+   if index==0:
+    version_first=f.version();late_first=late
+    ctx=f.reviewed(original,'s1',[late],window=window)
+    runtime=json.loads((f.task/'reviews/V-s1/reviewer-runtime.json').read_text())
+   else:
+    v=dict(contexts[0].verdict,verdict_id='V-continuation',pre_ship_evidence_ids=[late['evidence_id']],reviewed_at=datetime.now(timezone.utc).isoformat().replace('+00:00','Z'))
+    for key in ('review_history','review_sequence','reviewed_candidate_id','observed_attestation_digest'):v.pop(key,None)
+    ctx=review.record_review(f.task,op_id='review-continuation',expected_state_version=f.version(),relationship=original,verdict=v,reviewer_runtime_receipt=runtime,pre_ship_evidence=[late],behavioral_window_id=window)['context']
+   value={'review_strategy':'sequential-budget-v1','round_id':f'continuation-{index}','candidate_id':ctx.manifest['candidate_id'],'acceptance_digest':f.contract['contract_digest'],'scope':'s1','previous_round_id':records[-1]['round_id'] if records else None,'previous_round_digest':records[-1]['round_digest'] if records else None,'closure_dispositions':{},'dispositions':{},'members':[{'review_id':f'review-{index}','verdict_id':ctx.verdict['verdict_id'],'runtime':runtime,'candidate_id':ctx.manifest['candidate_id'],'acceptance_digest':f.contract['contract_digest'],'status':'valid','verdict':'ship','coverage_complete':True,'findings':[]}]}
+   if window:value['members'][0]['behavioral_window_id']=window
+   records.append(pool.record(f.task,value));contexts.append(ctx)
+  f.review_round=records[-1]
+  return f,original,contexts,runtime,late_first,version_first
+
+ def test_sequential_historical_same_candidate_review_replays_original_cli_receipt(self):
+  f,original,contexts,runtime,late,version=self.sequential_continuation_fixture()
+  state=w.read_task(f.task)['state'];first=contexts[0]
+  replay=review.record_review(f.task,op_id='review-s1',expected_state_version=version,relationship=original,verdict=first.verdict,reviewer_runtime_receipt=runtime,pre_ship_evidence=[late])
+  self.assertEqual(replay['verdict']['review_history'],[])
+  self.assertEqual(w.read_task(f.task)['state'],state)
+  args={'relationship':review.relationship_to_package(original),'verdict':first.verdict,'reviewer-runtime':runtime,'pre-ship-evidence':[late]}
+  cmd=[sys.executable,str(SCRIPTS/'review-packet.py'),'record-review','--task-dir',str(f.task),'--op-id','review-s1','--expected-state-version',str(version)]
+  for key,value in args.items():
+   path=f.root/f'replay-{key}.json';write_json(path,value);cmd.extend(['--'+key,str(path)])
+  result=subprocess.run(cmd,text=True,capture_output=True)
+  self.assertEqual(result.returncode,0,result.stderr)
+  self.assertEqual(json.loads(result.stdout)['receipt'],replay['receipt'])
+  self.assertEqual(w.read_task(f.task)['state'],state)
+  with self.assertRaises(w.WorkflowError):review.record_review(f.task,op_id='new-op-for-old-v',expected_state_version=f.version(),relationship=original,verdict=first.verdict,reviewer_runtime_receipt=runtime,pre_ship_evidence=[late])
+  self.assertEqual(w.read_task(f.task)['state'],state)
+  with self.assertRaises(w.WorkflowError):review.record_review(f.task,op_id='review-s1',expected_state_version=version,relationship=original,verdict=dict(first.verdict,coverage_complete=False),reviewer_runtime_receipt=runtime,pre_ship_evidence=[late])
+  f.accept(contexts[-1],'s1')
+
+ def test_sequential_history_readmits_missing_or_drifted_behavioral_windows(self):
+  for mutation in ('missing','drift'):
+   with self.subTest(mutation=mutation):
+    f,original,contexts,runtime,late,version=self.sequential_continuation_fixture(behavioral=True)
+    # Legal old and current observed windows support the latest same-context ship.
+    w.review_round_tool()._full_sequence_step(f.task,json.loads((f.task/'review-rounds/continuation-0.json').read_text()),f.contract)
+    path=f.task/'review-windows/window-0/begin.json';before=path.read_bytes()
+    if mutation=='missing':path.unlink()
+    else:
+     bad=json.loads(before);bad['candidate']['candidate_id']='changed';write_json(path,bad)
+    with self.assertRaises((ValueError,w.WorkflowError,OSError)):
+     w.review_round_tool()._full_sequence_step(f.task,json.loads((f.task/'review-rounds/continuation-0.json').read_text()),f.contract)
+    with self.assertRaises(AssertionError):f.accept(contexts[-1],'s1')
+    path.write_bytes(before)
+    f.accept(contexts[-1],'s1')
+    path.unlink()
+    with self.assertRaises(w.WorkflowError):w._load_persisted_acceptance_context(f.task,'A-s1')
+ def test_sequential_historical_runtime_receipt_digest_is_readmitted(self):
+  f,original,contexts,runtime,late,version=self.sequential_continuation_fixture()
+  step=json.loads((f.task/'review-rounds/continuation-0.json').read_text())
+  changed=dict(runtime,observation='altered-after-native-return')
+  write_json(f.task/'reviews/V-s1/reviewer-runtime.json',changed)
+  step['members'][0]['runtime']=changed
+  # Equal stored/summary runtime is insufficient: the unchanged observed attestation binds old bytes.
+  with self.assertRaises((ValueError,w.WorkflowError)):
+   w.review_round_tool()._full_sequence_step(f.task,step,f.contract)
+
  def pool_fixture(self):
   pool=w.review_round_tool();f=StagedFixture(reviewers=2);self.addCleanup(f.cleanup)
   f.receive_work('a');f.receive_work('b')

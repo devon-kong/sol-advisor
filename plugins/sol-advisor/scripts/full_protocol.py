@@ -27,6 +27,7 @@ PROTOCOL_VERSION = "SA-FULL-V2-P1"
 STAGED_PROTOCOL_VERSION = "SA-FULL-V2-P2"
 SUPPORTED_PROTOCOL_VERSIONS = frozenset({PROTOCOL_VERSION, STAGED_PROTOCOL_VERSION})
 ROUTES = frozenset({"solo", "delegate", "audit", "full"})
+SEQUENTIAL_REVIEW_STRATEGY = "sequential-budget-v1"
 VERDICTS = frozenset({"ship", "fix-first", "rethink"})
 REVIEW_STATUSES = frozenset(
     {
@@ -370,6 +371,17 @@ def validate_task_contract(value: object) -> dict[str, Any]:
             if not any(check.get("final_candidate_verify") is True and check.get("stage_key", stage_key) == stage_key for check in checks.values()):
                 raise ContractValidationError(f"stage {stage_key} needs an applicable final candidate verification check")
     review_policy = _mapping(contract["review_policy"], "review_policy", ContractValidationError)
+    strategy = review_policy.get("review_strategy")
+    if strategy is not None:
+        if strategy != SEQUENTIAL_REVIEW_STRATEGY or not staged:
+            raise ContractValidationError("unsupported sequential review strategy")
+        if "reviewers_per_round" in review_policy:
+            raise ContractValidationError("sequential budget and independent pool cannot be combined")
+        budget = review_policy.get("max_reviewers", 2)
+        if type(budget) is not int or budget < 1:
+            raise ContractValidationError("max_reviewers must be a positive integer")
+    elif "max_reviewers" in review_policy:
+        raise ContractValidationError("max_reviewers requires sequential review strategy")
     if "reviewers_per_round" in review_policy:
         count = review_policy["reviewers_per_round"]
         if type(count) is not int or count < 1:
@@ -391,6 +403,10 @@ def validate_task_contract(value: object) -> dict[str, Any]:
         allowed = {"allowed_verdicts", "review_identity_schema", "isolation_admission"}
         if "reviewers_per_round" in review_policy:
             allowed.add("reviewers_per_round")
+        if strategy is not None:
+            allowed.add("review_strategy")
+            if "max_reviewers" in review_policy:
+                allowed.add("max_reviewers")
         if admission == "hard-or-behavioral":
             allowed.add("behavioral_read_only_prompt_digest")
         if set(review_policy) != allowed:
@@ -892,14 +908,90 @@ def _validate_predecessor_closure(
     return sorted(closure)
 
 
+def validate_sequential_reviewer_identity(current, prior, budget, *, same_candidate=False):
+    """A corrected candidate advances through fresh identities, then resumes only the last."""
+    if type(budget) is not int or budget < 1:
+        raise RelationshipValidationError("max_reviewers must be a positive integer")
+    identities = []
+    for identity in [*prior, current]:
+        if not isinstance(identity, tuple) or len(identity) != 2 or any(not isinstance(x, str) or not x for x in identity):
+            raise RelationshipValidationError("sequential review requires exact thread/context identity")
+    for identity in prior:
+        if identity not in identities:
+            if any(identity[0] == old[0] or identity[1] == old[1] for old in identities):
+                raise RelationshipValidationError("sequential reviewer identity aliases an earlier context")
+            identities.append(identity)
+        elif identity != identities[-1]:
+            raise RelationshipValidationError("sequential history returns to an earlier Reviewer")
+    if len(identities) > budget:
+        raise RelationshipValidationError("sequential Reviewer budget exceeded")
+    if prior and (same_candidate or len(identities) == budget):
+        if current != prior[-1]:
+            raise RelationshipValidationError("resume only the last Reviewer after budget exhaustion or on unchanged candidate")
+        return "same-context"
+    if any(current[0] == old[0] or current[1] == old[1] for old in identities):
+        raise RelationshipValidationError("unused budget requires the next fresh Reviewer after correction")
+    return "fresh"
+
+
+def validate_sequential_review_history(value, *, contract, stage_key, candidate_id, reviewer):
+    """Validate Root-bound identity history independently of valid rejection ancestry."""
+    if not isinstance(value, list):
+        raise RelationshipValidationError("sequential V requires tool-bound review_history")
+    fields = {"round_id", "round_digest", "candidate_id", "verdict_id", "thread_id", "context_id", "acceptance_digest", "scope"}
+    step_ids, verdict_ids = set(), set()
+    prior = []
+    for item in value:
+        if not isinstance(item, Mapping) or set(item) != fields:
+            raise RelationshipValidationError("sequential V history entry is malformed")
+        for key in fields:
+            _string(item[key], "sequential history " + key, RelationshipValidationError)
+        canonical_component(item["round_id"], "sequential history round ID")
+        canonical_component(item["verdict_id"], "sequential history V ID")
+        if item["round_id"] in step_ids or item["verdict_id"] in verdict_ids:
+            raise RelationshipValidationError("sequential V history duplicates a step or V")
+        step_ids.add(item["round_id"]); verdict_ids.add(item["verdict_id"])
+        if item["acceptance_digest"] != contract["contract_digest"] or item["scope"] != stage_key:
+            raise RelationshipValidationError("sequential V history changes contract or stage")
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", item["round_digest"]):
+            raise RelationshipValidationError("sequential V history lacks an exact step digest")
+        identity = (item["thread_id"], item["context_id"])
+        validate_sequential_reviewer_identity(identity, prior,
+            contract["review_policy"].get("max_reviewers", 2),
+            same_candidate=bool(prior) and value[len(prior)-1]["candidate_id"] == item["candidate_id"])
+        prior.append(identity)
+    validate_sequential_reviewer_identity((reviewer.get("thread_id"), reviewer.get("context_id")), prior,
+        contract["review_policy"].get("max_reviewers", 2),
+        same_candidate=bool(value) and value[-1]["candidate_id"] == candidate_id)
+    return value
+
+
 def _validate_corrected_p2_reviewer_freshness(
     *, contract: Mapping[str, Any], bridge: Mapping[str, object],
     attestation: Mapping[str, object], closure: list[str],
     predecessor_verdicts: Mapping[str, Mapping[str, object]],
+    stage_key: str | None = None, review_history: object = None,
+    reviewed_candidate_id: str | None = None,
 ) -> None:
-    """Require a new observed reviewer identity after a P2 candidate correction."""
+    """Admit corrected identities under the frozen sequential or historical policy."""
 
     if contract["protocol"] != STAGED_PROTOCOL_VERSION:
+        return
+    if contract.get("review_policy", {}).get("review_strategy") == SEQUENTIAL_REVIEW_STRATEGY:
+        if reviewed_candidate_id != bridge.get("candidate_id"):
+            raise RelationshipValidationError("sequential V reviewed candidate does not bind CB")
+        reviewer = attestation.get("reviewer", {})
+        history = validate_sequential_review_history(review_history, contract=contract,
+            stage_key=stage_key, candidate_id=reviewed_candidate_id, reviewer=reviewer)
+        by_verdict = {item["verdict_id"]: item for item in history}
+        for key in closure:
+            old = predecessor_verdicts[key]
+            if old.get("stage_key") != stage_key:
+                continue
+            item = by_verdict.get(key)
+            if item is None or (item["thread_id"], item["context_id"], item["candidate_id"]) != (
+                old.get("reviewer_thread_id"), old.get("reviewer_context_id"), old.get("reviewed_candidate_id")):
+                raise RelationshipValidationError("sequential V history omits or changes a valid predecessor")
         return
     differing = [
         verdict_id for verdict_id in closure
@@ -1203,6 +1295,11 @@ def _validate_unavailable_verdict_context(
         or verdict.get("reviewer_context_id") != attestation["reviewer"]["context_id"]
     ):
         raise RelationshipValidationError("unavailable V does not bind tagged reviewer identity")
+    if contract["review_policy"].get("review_strategy") == SEQUENTIAL_REVIEW_STRATEGY:
+        if verdict.get("reviewed_candidate_id") != bridge["candidate_id"]:
+            raise RelationshipValidationError("unavailable sequential V reviewed candidate does not bind CB")
+        validate_sequential_review_history(verdict.get("review_history"), contract=contract,
+            stage_key=verdict.get("stage_key"), candidate_id=bridge["candidate_id"], reviewer=attestation["reviewer"])
     return verdict
 
 
@@ -1266,6 +1363,8 @@ def _validate_verdict_context(value: object, *, packet: Mapping[str, object], ca
     _validate_corrected_p2_reviewer_freshness(
         contract=contract, bridge=bridge, attestation=attestation,
         closure=expected_closure, predecessor_verdicts=predecessor_verdicts,
+        stage_key=review_packet.get("stage_key"), review_history=verdict.get("review_history"),
+        reviewed_candidate_id=verdict.get("reviewed_candidate_id"),
     )
     dispositions = _mapping(verdict.get("rejection_dispositions"), "V.rejection_dispositions", RelationshipValidationError)
     if set(dispositions) != set(expected_closure):

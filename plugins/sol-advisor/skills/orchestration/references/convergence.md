@@ -26,7 +26,7 @@ an edited acceptance record.
 For an explicitly declared `full` route, label the design decision, stage progress, and
 final acceptance separately. DR is never candidate, packet, V, or A authority. State
 records progress/selection only and cannot replace immutable provenance. Final acceptance
-requires the same-candidate chain and a fresh valid `ship`, not a green delivery or design
+requires the same-candidate chain and a current valid `ship`, not a green delivery or design
 approval. Use [full-workflow.md](full-workflow.md) for artifact and recovery rules.
 
 ## Impact surface

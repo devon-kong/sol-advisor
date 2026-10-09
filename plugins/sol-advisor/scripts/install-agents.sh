@@ -125,9 +125,10 @@ replace_legacy_role() {
   legacy_digest_alt=${5-}
   legacy_digest_third=${6-}
   legacy_digest_fourth=${7-}
+  legacy_digest_fifth=${8-}
   staged=''
 
-  [ "$(classify_current_or_legacy "$destination" "$template" "$legacy_digest" "$legacy_digest_alt" "$legacy_digest_third" "$legacy_digest_fourth")" = legacy ] ||
+  [ "$(classify_current_or_legacy "$destination" "$template" "$legacy_digest" "$legacy_digest_alt" "$legacy_digest_third" "$legacy_digest_fourth" "$legacy_digest_fifth")" = legacy ] ||
     fail "legacy $label destination changed after preflight and will not be replaced: $destination"
 
   staged=$(mktemp "$target_dir/.sol-advisor-agent.XXXXXX") || fail "could not stage migrated $label template: $destination"
@@ -136,7 +137,7 @@ replace_legacy_role() {
     fail "could not stage migrated $label template: $destination"
   fi
 
-  [ "$(classify_current_or_legacy "$destination" "$template" "$legacy_digest" "$legacy_digest_alt" "$legacy_digest_third" "$legacy_digest_fourth")" = legacy ] || {
+  [ "$(classify_current_or_legacy "$destination" "$template" "$legacy_digest" "$legacy_digest_alt" "$legacy_digest_third" "$legacy_digest_fourth" "$legacy_digest_fifth")" = legacy ] || {
     rm -f "$staged"
     fail "legacy $label destination changed after preflight and will not be replaced: $destination"
   }
@@ -239,6 +240,9 @@ legacy_reviewer_v080_sha256=579aee6f9f82e84b3a3bbd89e05fcb139051a7232cd20c43ab51
 # Exact v0.8.2 Sol profiles before the GPT-6.1 / High update.
 legacy_implementer_v082_sha256=8666030c012328cf85c9d98aa5ca230c458378ab12f1562fc8e4c556729fe42f
 legacy_reviewer_v082_sha256=6642bc1568229b65df539cff43f639439b70b74aab633c7a6228f63b6a642a52
+# Exact 0.8.3/0.9.0 Reviewer before sequential continuation support.
+legacy_implementer_v090_sha256=05e60b16f5ce11d29665e9979675e3afe5ca1df8eb6b3acb441dbf289c3cb7ee
+legacy_reviewer_v090_sha256=2d38dc9191b55837f1c7a684615a3ef8ac57c441c4cfcc25aa36eaccd0532875
 # Exact old-name v0.8.0 and pre-rename GPT-6 implementer templates.
 legacy_terra_v080_sha256=65ed1207a864efc7265212bcaca0dd3d59054515070f9e328986767c4fce2ee6
 legacy_terra_gpt6_sha256=678f8a6076a8ff1e640b69b48ab876f04dccb98ef8e92fe534ffb2c2b8111b51
@@ -261,7 +265,7 @@ if [ "$check_only" -eq 1 ]; then
   if role_selected implementer; then
     [ -f "$implementer_template" ] && [ ! -L "$implementer_template" ] ||
       report_preflight_error "shipped Sol implementer template is missing or not a regular file: $implementer_template"
-    implementer_state=$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_implementer_v082_sha256")
+    implementer_state=$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_implementer_v082_sha256" "$legacy_implementer_v090_sha256")
     [ "$implementer_state" = current ] ||
       report_preflight_error "Sol implementer template is $implementer_state, not the current exact file: $implementer_destination"
     path_exists "$retired_implementer_destination" &&
@@ -270,7 +274,7 @@ if [ "$check_only" -eq 1 ]; then
   if role_selected reviewer; then
     [ -f "$reviewer_template" ] && [ ! -L "$reviewer_template" ] ||
       report_preflight_error "shipped Reviewer template is missing or not a regular file: $reviewer_template"
-    reviewer_state=$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" "$legacy_reviewer_v082_sha256")
+    reviewer_state=$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" "$legacy_reviewer_v082_sha256" "$legacy_reviewer_v090_sha256")
     [ "$reviewer_state" = current ] ||
       report_preflight_error "Reviewer template is $reviewer_state, not the current exact file: $reviewer_destination"
   fi
@@ -280,9 +284,9 @@ else
       fail "shipped template is missing or not a regular file: $template"
   done
   luna_state=$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256" "$legacy_luna_v080_sha256")
-  implementer_state=$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_implementer_v082_sha256")
+  implementer_state=$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_implementer_v082_sha256" "$legacy_implementer_v090_sha256")
   retired_implementer_state=$(classify_current_or_legacy "$retired_implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_terra_v080_sha256" "$legacy_terra_gpt6_sha256")
-  reviewer_state=$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" "$legacy_reviewer_v082_sha256")
+  reviewer_state=$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" "$legacy_reviewer_v082_sha256" "$legacy_reviewer_v090_sha256")
   case "$luna_state" in
     current|legacy|missing) ;;
     *) report_preflight_error "Luna destination is $luna_state and will not be replaced: $luna_destination" ;;
@@ -319,9 +323,9 @@ fi
   fail "target directory changed after preflight: $target_dir"
 
 same_state Luna "$luna_state" "$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256" "$legacy_luna_v080_sha256")"
-same_state Sol-implementer "$implementer_state" "$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_implementer_v082_sha256")"
+same_state Sol-implementer "$implementer_state" "$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_implementer_v082_sha256" "$legacy_implementer_v090_sha256")"
 same_state Retired-implementer "$retired_implementer_state" "$(classify_current_or_legacy "$retired_implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_terra_v080_sha256" "$legacy_terra_gpt6_sha256")"
-same_state Reviewer "$reviewer_state" "$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" "$legacy_reviewer_v082_sha256")"
+same_state Reviewer "$reviewer_state" "$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" "$legacy_reviewer_v082_sha256" "$legacy_reviewer_v090_sha256")"
 
 case "$luna_state" in
   missing) install_missing "$luna_template" "$luna_destination" ;;
@@ -331,7 +335,7 @@ esac
 
 case "$implementer_state" in
   missing) install_missing "$implementer_template" "$implementer_destination" ;;
-  legacy) replace_legacy_role Sol-implementer "$implementer_template" "$implementer_destination" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_implementer_v082_sha256" ;;
+  legacy) replace_legacy_role Sol-implementer "$implementer_template" "$implementer_destination" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_implementer_v082_sha256" "$legacy_implementer_v090_sha256" ;;
   current) printf '%s\n' "ALREADY CURRENT: $implementer_destination" ;;
 esac
 
@@ -345,15 +349,15 @@ esac
 
 case "$reviewer_state" in
   missing) install_missing "$reviewer_template" "$reviewer_destination" ;;
-  legacy) replace_legacy_role Reviewer "$reviewer_template" "$reviewer_destination" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" "$legacy_reviewer_v082_sha256" ;;
+  legacy) replace_legacy_role Reviewer "$reviewer_template" "$reviewer_destination" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" "$legacy_reviewer_v082_sha256" "$legacy_reviewer_v090_sha256" ;;
   current) printf '%s\n' "ALREADY CURRENT: $reviewer_destination" ;;
 esac
 
 [ "$(classify_current_or_legacy "$luna_destination" "$luna_template" "$legacy_luna_sha256" "$legacy_luna_v050_sha256" "$legacy_luna_v080_sha256")" = current ] ||
   fail "post-install exactness check failed: $luna_destination"
-[ "$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_implementer_v082_sha256")" = current ] ||
+[ "$(classify_current_or_legacy "$implementer_destination" "$implementer_template" "$legacy_terra_sha256" "$legacy_terra_v050_sha256" "$legacy_terra_v073_sha256" "$legacy_implementer_v082_sha256" "$legacy_implementer_v090_sha256")" = current ] ||
   fail "post-install exactness check failed: $implementer_destination"
-[ "$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" "$legacy_reviewer_v082_sha256")" = current ] ||
+[ "$(classify_current_or_legacy "$reviewer_destination" "$reviewer_template" "$legacy_reviewer_v073_sha256" "$legacy_reviewer_v080_sha256" "$legacy_reviewer_v082_sha256" "$legacy_reviewer_v090_sha256")" = current ] ||
   fail "post-install exactness check failed: $reviewer_destination"
 path_exists "$retired_implementer_destination" && fail "retired implementer file remains: $retired_implementer_destination"
 

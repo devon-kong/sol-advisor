@@ -187,6 +187,32 @@ class VerifyTestSuiteTests(unittest.TestCase):
             self.assertNotEqual(refused.returncode, 0)
             self.assertEqual({p.name: p.read_bytes() for p in target.iterdir()}, before)
 
+    def test_v090_reviewer_migrates_exact_bytes_and_preserves_custom_edits(self) -> None:
+        plugin = RUNNER.parent.parent
+        for custom_role in (None, "reviewer", "implementer"):
+            with self.subTest(custom_role=custom_role), tempfile.TemporaryDirectory() as tmp:
+                target = Path(tmp) / "agents"
+                shutil.copytree(plugin / "agents", target)
+                for role in ("reviewer", "implementer"):
+                    previous = (plugin / f"tests/fixtures/{role}-v090.toml").read_bytes()
+                    if custom_role == role:
+                        previous += b"\n# user customization\n"
+                    (target / f"sol-advisor-sol-{role}.toml").write_bytes(previous)
+                command = ["sh", str(plugin / "scripts/install-agents.sh"), "--target-dir", str(target)]
+                before = {p.name: p.read_bytes() for p in target.iterdir()}
+                check = subprocess.run(command + ["--check"], capture_output=True, text=True)
+                self.assertNotEqual(check.returncode, 0)
+                self.assertEqual({p.name: p.read_bytes() for p in target.iterdir()}, before)
+                result = subprocess.run(command, capture_output=True, text=True)
+                if custom_role:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual({p.name: p.read_bytes() for p in target.iterdir()}, before)
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual({p.name: p.read_bytes() for p in target.iterdir()},
+                                     {p.name: p.read_bytes() for p in (plugin / "agents").iterdir()})
+                    self.assertEqual(subprocess.run(command + ["--check"], capture_output=True).returncode, 0)
+
     def test_v082_sol_roles_migrate_to_exact_current_templates(self) -> None:
         plugin = RUNNER.parent.parent
         with tempfile.TemporaryDirectory() as tmp:

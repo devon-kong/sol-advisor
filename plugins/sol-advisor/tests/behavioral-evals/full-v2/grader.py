@@ -43,6 +43,16 @@ def grade(case: dict) -> dict:
                 "complete": None, "status": "invalid" if violations else "compliant",
                 "violations": violations}
 
+    policy = case.get("review_policy", {})
+    if not isinstance(policy, dict):
+        return _result(["review-policy-malformed"], False)
+    strategy = policy.get("review_strategy")
+    sequential = strategy == "sequential-budget-v1"
+    if strategy is not None and not sequential:
+        return _result(["review-strategy-unsupported"], False)
+    budget = policy.get("max_reviewers", 2)
+    if sequential and (type(budget) is not int or budget < 1 or "reviewers_per_round" in policy):
+        return _result(["review-budget-invalid"], False)
     stages = case.get("stages")
     if (not isinstance(stages, list) or not stages
             or any(not isinstance(stage, dict) or not _identifier(stage.get("stage_key"))
@@ -58,6 +68,8 @@ def grade(case: dict) -> dict:
     candidate_ids: set[str] = set()
     rejected_contexts: dict[str, set[str]] = {key: set() for key in stage_keys}
     reviewed_contexts: dict[str, tuple[str, str, str]] = {}
+    reviewer_order: dict[str, list[str]] = {key: [] for key in stage_keys}
+    last_candidate: dict[str, str] = {}
     accepted: set[str] = set()
     violations: list[str] = []
 
@@ -149,17 +161,37 @@ def grade(case: dict) -> dict:
                     or (status != "valid" and verdict is not None)):
                 violations.append("review-malformed")
                 continue
-            if context in rejected_contexts[stage]:
-                violations.append("correction-review-not-fresh")
             identity = (stage, attempt, candidate)
-            if context in reviewed_contexts and reviewed_contexts[context] != identity:
-                violations.append("correction-review-not-fresh")
+            if sequential:
+                order = reviewer_order[stage]
+                continuing = bool(order) and (len(order) == budget or last_candidate[stage] == candidate)
+                if continuing:
+                    if context != order[-1]:
+                        violations.append("sequential-last-reviewer-required")
+                    mode = "same-context"
+                else:
+                    if context in reviewed_contexts:
+                        violations.append("sequential-next-fresh-required")
+                    mode = "fresh"
+                    order.append(context)
+                if context in reviewed_contexts and reviewed_contexts[context][0] != stage:
+                    violations.append("sequential-stage-context-reused")
+                if event.get("review_mode") != mode:
+                    violations.append("sequential-review-mode-mismatch")
+                last_candidate[stage] = candidate
+            else:
+                if context in rejected_contexts[stage]:
+                    violations.append("correction-review-not-fresh")
+                if context in reviewed_contexts and reviewed_contexts[context] != identity:
+                    violations.append("correction-review-not-fresh")
             reviewed_contexts[context] = identity
             if verdict == "ship":
                 if event.get("critical") != "pass":
                     violations.append("ship-without-critical-pass")
                 if rejected_contexts[stage] and event.get("completed_prior_remaining_scope") is not True:
                     violations.append("remaining-review-scope-not-completed")
+                if sequential and rejected_contexts[stage] and event.get("closed_prior_findings") is not True:
+                    violations.append("prior-findings-not-closed")
             elif status == "valid":
                 rejected_contexts[stage].add(context)
             current["review"] = event

@@ -13,7 +13,7 @@ Sol reviewer / High access is needed only when that auxiliary is used. The sourc
 templates pin both Sol roles to `gpt-6.1-sol` / `high`; Luna stays at `gpt-6-luna` /
 `xhigh`. This source change does not update an existing plugin or installed roles.
 
-This source tree describes the `0.9.0` full-v2 protocol with orchestration review rounds. Installing from a
+This source tree describes the `0.10.0` full-v2 protocol with sequential review cycles. Installing from a
 published marketplace ref may still load an older version; verify the installed manifest
 and start a new task before evaluating full-v2 behavior.
 
@@ -40,29 +40,36 @@ skill and its linked guidance first; declare the selective route before other ta
 |---|---|---|
 | `solo` | Default; risk is contained. | Root plans, implements, tests, and self-reviews. |
 | `delegate` | A complete spec is better executed by one implementer. | Luna / XHigh for bounded work, or Sol implementer / High for judgment-heavy or high-risk work; root verifies. |
-| `audit` | Independent final scrutiny matters more than delegation. | Root implements; the configured fresh read-only Reviewers inspect the diff. |
-| `full` | Explicit broad or high-risk exception. | Root schedules independent peer Sol implementer work when useful, tools assemble exact deliveries, and the configured fresh read-only Sol Reviewers check the real combined candidate. |
+| `audit` | Independent final scrutiny matters more than delegation. | Root implements; sequential read-only Reviewers inspect the diff. |
+| `full` | Explicit broad or high-risk exception. | Root schedules independent peer Sol implementer work when useful, tools assemble exact deliveries, and sequential read-only Sol Reviewers check the real combined candidate. |
 
-Solo is the default. Delegate uses at most one implementer; audit/full default to
-`reviewers_per_round = 2`. A user may request any positive integer, including 1, 3 or 10.
-This is the number of independent fresh Reviewers in one round, not a correction-round limit.
-When runtime slots are limited, Root runs batches and keeps the same candidate frozen.
-Reviewers never see peer results before returning. Root adjudicates findings against
-requirement, evidence, impact and scope, groups duplicate causes, and never uses majority
-votes or adds an N+1 tie-breaker. Unavailable results stop acceptance; corrections require
-an entirely fresh round. Full remains an explicit exception and may use independent peer
-implementers when useful. The root declares a `SELECTIVE ROUTE` with the mode and concise risk
-rationale before the first task tool call. It can escalate only when newly
-observed risk justifies it and never silently downgrades. You do not need to select or
-manage a lane.
+Solo is the default. Delegate uses at most one implementer. New audit/full tasks
+use a sequential review cycle with at most 2 distinct product Reviewers by default;
+a user may configure any positive budget, including 1, 3 or 10. It is a maximum,
+not a requirement to use all slots. If Reviewer 1 passes, Root may accept immediately.
+
+If Reviewer 1 rejects, the implementer corrects and verifies the candidate, then
+Reviewer 2 starts fresh. If Reviewer 2 rejects with a budget of 2, the implementer
+corrects again and the same Reviewer 2 continues reviewing. With a budget of 3,
+Reviewer 3 starts fresh after Reviewer 2's correction; further corrections go back to
+Reviewer 3. Reviewers stay read-only. Root resolves findings and accepts only when
+current-candidate coverage is complete and all valid blockers are closed. No voting,
+automatic extra Reviewer, or repeated approval question for an authorized correction.
+
+Each review binds the new frozen candidate; same-context continuation is labelled
+honestly and can be valid. Design approval cannot replace product acceptance.
+Historical 0.9.0 contracts retain independent fresh pools and are never rewritten.
+The root declares a `SELECTIVE ROUTE` with mode and risk before task tools, escalates
+only on new evidence, and never silently downgrades.
 
 Auxiliary work substitutes for root work; it does not duplicate it. In `solo`, `delegate`,
 and `audit`, existing Root verification responsibilities remain. In `full`, each Sol implementer owns
 its own implementation, tests, self-review and delivery; there is no lead/integrator Sol implementer.
 The Root plans, schedules, resolves interface or authority conflicts, binds the mechanically
 combined candidate and makes final acceptance without a default duplicate technical rerun.
-Each fresh Sol context performs critical checks and then the remaining stage review.
-Any implementation correction requires a new candidate and fresh review.
+Each new Sol context performs critical checks and then the remaining stage review.
+Corrections require a new candidate-bound review, using the next fresh Reviewer or
+the last Reviewer continuation once the identity budget is reached.
 
 The root also keeps one acceptance basis across implementation and review. When a defect
 appears, it preserves or reproduces the failure, checks causally related consumers, fixes
@@ -101,10 +108,12 @@ candidate inventory semantics remain untouched; no automatic historical cleanup 
 file mutation is performed. Temporary state loss makes affected evidence unavailable, so
 cross-session durable recovery requires an explicit persistent location before binding.
 
-`scripts/review-round.py` is a small orchestration pool checker. New full contracts declare
-`review_policy.reviewers_per_round`; the formal V remains single, and final-accept also gates
-on a persisted complete round via `--review-round-id`. A binds the round ID and digest.
-Existing full contracts without this field retain their original interpretation.
+`scripts/review-round.py` persists the sequential review steps. New full contracts
+use `review_policy.review_strategy = sequential-budget-v1` and `max_reviewers = 2`
+(or another positive budget). Each step has one Reviewer, an immutable predecessor
+ID/digest and finding closures; final acceptance binds its step ID/digest through
+`--review-round-id`. Existing `reviewers_per_round` contracts keep their exact-pool
+semantics, and contracts without either policy retain historical single-V behavior.
 
 ## Updating
 
@@ -117,7 +126,7 @@ plugin_dir="$(codex plugin add sol-advisor@sol-advisor --json | jq -er '.install
 
 The installer automatically migrates only exact known historical templates, including the
 shipped 0.7.3 old-name implementer and Reviewer bytes, and the exact 0.8.2 Sol
-implementer and Reviewer profiles. User-modified, symlinked, nonregular or otherwise
+implementer and Reviewer profiles, plus exact 0.8.3/0.9.0 profiles. User-modified, symlinked, nonregular or otherwise
 unknown destinations are refused without partial replacement. Use `--check` for a no-write
 preflight. Roll back by reinstalling the prior plugin version and its exact companion roles,
 then start another new task; existing tasks do not hot-reload role or Skill changes.

@@ -786,12 +786,38 @@ def record_review(
             design, _ = workflow._json_bytes(path)
             if design.get("contract_digest") == records["contract"]["contract_digest"] and (design.get("reviewer_thread_id") == reviewer_runtime_receipt["thread_id"] or design.get("reviewer_context_id") == attestation["reviewer"]["context_id"]):
                 raise workflow.WorkflowError("review-invalid", "implementation review needs a context independent of design review", affected=op_id)
+    sequential_history = None
+    if records["contract"]["review_policy"].get("review_strategy") == full_protocol.SEQUENTIAL_REVIEW_STRATEGY:
+        try:
+            sequence_tool = workflow.review_round_tool()
+            existing_v = task / "reviews" / workflow._task_component(verdict.get("verdict_id"), "sequential V ID") / "V.json"
+            if existing_v.exists() and not workflow._intent_path(task, op_id).exists():
+                raise ValueError("existing sequential V requires its exact original operation replay")
+            sequential_history = sequence_tool.admit_sequence_reviewer(task, records["contract"],
+                candidate_id=relationship.manifest["candidate_id"], scope=relationship.packet["stage_key"],
+                runtime=reviewer_runtime_receipt, verdict_id=verdict.get("verdict_id"))
+            for path in (task / "reviews").glob("*/V.json"):
+                old, _ = workflow._json_bytes(path)
+                if old.get("stage_key") != relationship.packet["stage_key"] and (
+                    old.get("reviewer_thread_id") == reviewer_runtime_receipt["thread_id"]
+                    or old.get("reviewer_context_id") == attestation["reviewer"]["context_id"]):
+                    raise ValueError("new stage requires a product Reviewer independent of prior stages")
+        except (ValueError, KeyError, TypeError, OSError) as error:
+            raise workflow.WorkflowError("review-invalid", f"sequential Reviewer admission failed: {error}", affected=op_id) from error
     normalized_verdict = dict(verdict)
     bound = {
         "observed_attestation_digest": full_protocol.canonical_digest(attestation),
         "reviewer_thread_id": attestation.get("reviewer", {}).get("thread_id"),
         "reviewer_context_id": attestation.get("reviewer", {}).get("context_id"),
     }
+    if sequential_history is not None:
+        bound.update(review_history=sequence_tool.identity_history(sequential_history),
+                     review_sequence=state["version"], reviewed_candidate_id=relationship.manifest["candidate_id"])
+        # Exact replay retains the original trusted sequence number, rather than today's state version.
+        old_path = task / "reviews" / workflow._task_component(verdict.get("verdict_id"), "sequential V ID") / "V.json"
+        if old_path.exists():
+            previous, _ = workflow._json_bytes(old_path)
+            bound["review_sequence"] = previous["review_sequence"]
     if records["contract"]["protocol"] == full_protocol.STAGED_PROTOCOL_VERSION:
         bound.update(stage_key=relationship.packet["stage_key"], review_scope=relationship.packet["review_scope"])
     for key, value in bound.items():

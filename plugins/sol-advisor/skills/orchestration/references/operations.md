@@ -7,7 +7,7 @@ worker and reviewer prompts belong to [role-contracts.md](role-contracts.md).
 
 For a declared `full` route, use [full-workflow.md](full-workflow.md) before task-contract
 publication. Root plans and later binds/verifies the candidate, Sol implementer independently delivers
-owned work, and fresh Sol performs critical-then-complete read-only review. Root does not
+owned work, and policy-selected Sol performs critical-then-complete read-only review. Root does not
 add a default duplicate technical rerun. No protocol rule authorizes role substitution,
 install, credentials, business networking, publication, or push.
 
@@ -19,9 +19,10 @@ The installed TOMLs are the source of truth:
 |---|---|---|---|
 | sol_advisor_luna_implementer | gpt-6-luna | xhigh | Bounded implementation |
 | sol_advisor_sol_implementer | gpt-6.1-sol | high | Judgment-heavy or high-risk implementation |
-| sol_advisor_sol_reviewer | gpt-6.1-sol | high | Fresh review; requests read-only sandbox |
+| sol_advisor_sol_reviewer | gpt-6.1-sol | high | Fresh or budget-authorised continuing review; requests read-only sandbox |
 
-Use the selected exact role with a fresh context:
+Use the selected exact role with a fresh context for a new identity. For an authorised
+sequential continuation, resume the last native Reviewer via followup_task rather than spawn:
 
 ~~~text
 agent_type: sol_advisor_luna_implementer
@@ -121,8 +122,9 @@ policy and permission profile:
 
 A Reviewer always returns `REVIEW_STATUS: valid|unavailable|invalid`. A valid status has
 exactly one `ship|fix-first|rethink` verdict; unavailable/invalid has `VERDICT: null`.
-A fix invalidates the prior valid verdict; re-verify and obtain a new fresh review as
-required by SKILL.md. For `full`, P3 performs the same-observed-context challenge handshake
+A fix invalidates the prior valid verdict; re-verify and obtain the next fresh Reviewer
+or the last-Reviewer continuation under the sequential policy. Historical pools still
+require fresh correction rounds, as defined in SKILL.md. For `full`, P3 performs the same-observed-context challenge handshake
 and record publication described in full-workflow.md.
 
 ## Mechanical full-task storage
@@ -273,47 +275,50 @@ future observation digest. It cannot detect a write restored within one window a
 not be reported as enforced read-only isolation. Hard-required contracts still refuse a
 broad host. Old evidence stays historical and cannot approve new bytes.
 
-## Reviewer pool operations
+## Sequential Reviewer operations
 
-Preflight the selected Reviewer once per task; verify role/model/effort/isolation for each
-returned native thread. Freeze one candidate and acceptance basis across all N returns.
-Queue batches when slots are limited; release completed agents before starting later ones.
-Do not pass peer results between Reviewers. Record per-member status, verdict, coverage,
-findings and the Root-observed runtime receipt. Root records every finding's disposition
-(accept/reject plus evidence-based reason). Aggregate with:
+Preflight Reviewer once per task, and verify each new native role/model/effort/permission
+identity. Start every new Reviewer with `fork_turns: none`; continue the last native
+Reviewer with followup_task only when its identity budget is reached (or for unchanged
+candidate evidence continuation). Preserve its exact thread and context. For broad-host
+review, create and close a new observed begin/end window for every new candidate, including
+continuations; do not claim enforced isolation from a read-only boolean.
+
+New full contracts declare review_strategy sequential-budget-v1 and max_reviewers (default 2).
+Each input to review-round.py has review_strategy, round_id, scope (P's stage_key),
+candidate_id, acceptance_digest, one member, dispositions, closure_dispositions, and
+previous_round_id/previous_round_digest (both null for the first step). Each member has
+review_id, persisted verdict_id, Root-observed runtime, status, verdict, coverage_complete,
+findings and any behavioral_window_id. Full recording rechecks persisted V/runtime/context,
+challenge and predecessor provenance. Persist a rejection step before its successor V.
+
+`dispositions` covers exactly this member's findings by review_id:finding_id, with accept
+or reject and a reason. `closure_dispositions` covers all previously accepted findings by
+round_id:review_id:finding_id: open, resolved plus current evidence, or reject plus evidence
+and reason. Even previously resolved findings remain accounted for in every later step.
+record-review binds review_sequence, reviewed_candidate_id and review_history from actual
+persisted steps; callers do not invent these fields. All statuses consume identities. Canonical
+V admission, step publication and recovery recheck this exact observed identity history
+independently of the valid-rejection closure. Conflicting or omitted historical metadata fails.
+Every old step re-admits its runtime and persisted begin/end window using its own candidate,
+not the latest candidate. Missing or changed old provenance stops the affected lane. Exact
+same-candidate operation replay retains that V's own history prefix and trusted sequence;
+changed replay input or a new operation ID for an existing V cannot reapply old state.
+The chain is linear, digest-bound and stage-scoped; omitting, forking, changing budget,
+returning to an earlier Reviewer or adding N+1 is rejected. After a fix, old ship never
+signs new bytes. A complete current valid ship can be fresh or same-context.
 
 ~~~sh
-python3 "$skill_dir/../../scripts/review-round.py" aggregate --input "$round_input" --output "$round_result"
-# Full: persist under the existing task, then bind this ID in A and final-accept.
-python3 "$skill_dir/../../scripts/review-round.py" record --task-dir "$task_dir" --input "$round_input"
-# workflow.py final-accept ... --review-round-id <round-id>
+# Standalone audit: pass the complete earlier steps in predecessor order.
+python3 "$skill_dir/../../scripts/review-round.py" aggregate --input "$step_input" --previous "$prior_step" --output "$step_result"
+# Full: the task owns the policy, prior steps, observed windows and V provenance.
+python3 "$skill_dir/../../scripts/review-round.py" record --task-dir "$task_dir" --input "$step_input"
+# workflow.py final-accept ... --review-round-id <latest-step-id>
 ~~~
 
-Round input contains round_id, scope, candidate_id, acceptance_digest, members,
-dispositions and optional reviewers_per_round (default 2). For full, scope equals P's
-stage_key (or final for P1), acceptance_digest equals contract_digest. Each member has
-review_id, candidate_id, acceptance_digest, status, verdict, coverage_complete, findings,
-and runtime. Findings have finding_id, class, requirement, evidence, impact, scope,
-required_outcome and optional root_cause. Dispositions are keyed by review_id:finding_id.
-An accepted blocker needs all four requirement/evidence/impact/scope fields and current scope;
-an unsupported finding can only be rejected with a concrete Root reason. Every full member
-uses the existing tagged attestation admission, including exact runtime/permission/prompt facts.
-A broad host additionally names behavioral_window_id: Root must begin before dispatch and end
-after the response using review-packet.py's existing window commands. Close every member's
-window before publishing V or round records. A boolean is never isolation evidence. Record
-validates persisted window digests, candidate and native identities; final-accept/recovery
-recheck them. Audit aggregate with behavioral attestations also supplies --review-policy and
---isolation-admission hard-or-behavioral. This is observation, not enforced isolation.
-
-After correction, all identities must be fresh. The tool checks complete persisted round
-digests before using history, plus design-review and prior-candidate identities for every
-member. The selected canonical V still requires a valid ship response. If every original
-member rejected only unsupported findings, Root preserves those raw returns and dispositions;
-the selected member can continue in the same context on the settled acceptance basis to
-supply canonical V. This is no additional Reviewer and never rewrites the raw return.
-The full round gate checks member identity and complete coverage rather than requiring its
-original verdict to be ship. Final acceptance requires both the Root-adjudicated round and
-that existing valid V. The tool checks persisted full rounds;
-audit callers pass every previous result with repeatable --previous. Missing/invalid members,
-identity reuse, changed bindings or incomplete coverage prevent acceptance. Design rounds
-remain design-only and do not authorize product acceptance.
+First-step audit omits --previous; later steps supply it once for every prior record.
+Final acceptance and recovery recheck all persisted history, current-candidate identity,
+exact latest canonical V, closures, coverage and observed permissions. Design contexts
+cannot be reused as product Reviewer identities or substitute for product coverage.
+Historical reviewers_per_round inputs keep the old exact-count independent pool and
+fresh-after-correction semantics. Existing contracts are never silently migrated.

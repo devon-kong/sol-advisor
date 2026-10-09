@@ -16,7 +16,9 @@ document material judgment calls.
 For a declared full route, deliver as a peer implementation worker only: Root retains
 planning, state transitions, candidate binding, and acceptance. Do not become a lead,
 integrator, reviewer, or default root technical rerun. Keep design approval, stage
-progress, and final acceptance distinct; a fresh Sol review follows a corrected candidate.
+progress, and final acceptance distinct; a new candidate-bound Sol review follows a
+corrected candidate under the frozen review policy. Sequential budgets advance to the
+next fresh Reviewer, then resume only the last Reviewer after budget exhaustion.
 Use the supplied work contract and only the risk references it names; Root owns loading
 orchestration procedures. Read actual code and related consumers as needed. Complete
 implementation, targeted tests, self-review, and ordinary corrections before ready;

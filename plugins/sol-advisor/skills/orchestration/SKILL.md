@@ -8,8 +8,8 @@ description: "Codex-native risk-gated selective routing: default solo delivery, 
 Act as the architect. Own the user's intent, acceptance basis, architecture, route choice,
 decomposition, implementation or delegation, root verification, correction decisions,
 and final acceptance. Selective routing has four exact modes: `solo`, `delegate`, `audit`,
-and `full`. Solo is the default. One implementer is the default maximum in delegate; audit/full review rounds default to
-2 independent Reviewers. Full is an explicit broad or high-risk exception.
+and `full`. Solo is the default. One implementer is the default maximum in delegate; audit/full review cycles default to
+a maximum of 2 sequential Reviewer identities. Full is an explicit broad or high-risk exception.
 
 Read [references/role-contracts.md](references/role-contracts.md) before the first
 delegation or review. Use [references/operations.md](references/operations.md) for exact
@@ -22,25 +22,48 @@ Before allocating runtime files, read [references/artifacts.md](references/artif
 Do not require or create project `.agent-artifacts/`. Allocate a private OS temporary task
 directory only when tools need it; routine work needs no runtime directory or archive.
 
-## Review rounds
+## Sequential review cycles
 
-For audit/full, set `reviewers_per_round: 2` unless the user requests another positive integer.
-This counts people in one round, not the maximum number of correction rounds. Record the
-requested count and acceptance basis before dispatch; never reduce it silently. Preflight
-Reviewer once for this task, verify every spawned thread's exact native identity and observed
-permissions, and use independent fresh contexts with the same candidate and acceptance basis.
-Do not share another Reviewer's findings or verdict before all independent returns are frozen.
-If N exceeds available slots, run batches, releasing completed slots; keep the candidate frozen.
-Never spawn N+1 to break a tie or because someone disagrees. Missing results stop acceptance.
+For new audit/full work, use `review_strategy: sequential-budget-v1` and
+`max_reviewers: 2` unless the user requests another positive integer. This is a maximum
+number of distinct product Reviewer identities in one stage's review cycle, not a
+required pool size or a limit on correction attempts. Review one frozen candidate at a
+time. Reviewer 1 starts fresh; if it ships with full coverage and no valid blockers,
+Root may accept immediately without spawning Reviewer 2.
 
-Root adjudicates requirement/evidence/impact/scope for every finding, merges duplicate root
-causes and records why an out-of-scope or unsupported finding is rejected. No majority vote:
-a valid implementation blocker means fix-first; a valid architecture/contract blocker means
-rethink. No valid blocker and complete valid coverage means ship. Unavailable/invalid results
-never become ship. Corrections invalidate the entire round and require N new fresh contexts.
-Use `scripts/review-round.py` to check the pool and aggregate Root dispositions. New full
-contracts put `reviewers_per_round` in review_policy; final-accept also requires the persisted
-round ID. Existing contracts keep their historical single-V interpretation.
+If a valid blocker requires correction, audit returns it to Root and full returns it to
+the owning stage implementer. Verify and freeze the corrected candidate. While unused
+identity slots remain, spawn the next fresh Reviewer: with a budget of 2, Reviewer 2;
+with 3, then Reviewer 3. Once the budget is reached, resume the last Reviewer for every
+further correction. Never reuse an earlier Reviewer instead of the last one.
+Never spawn N+1 automatically. Preflight Reviewer once, observe every new identity, and verify
+permissions/isolation for each review window, including continuations. An unavailable
+Reviewer does not become ship or authorize an extra identity; recover that lane or
+report the affected stage blocked rather than silently exceeding the budget.
+
+Every correction invalidates the old candidate's verdict, not the last Reviewer's ability
+to review new bytes. A continuation produces a new candidate-bound result and is labelled
+same-context, never fresh. It can be valid/ship under this strategy. Each new Reviewer
+reviews the cumulative candidate; the last Reviewer's continuation checks all inherited
+blockers, the correction, affected consumers and remaining unreviewed scope. Historical
+findings and failures remain. Root adjudicates requirement/evidence/impact/scope, groups
+shared causes, and records evidence for resolutions or rejections. A valid blocker means
+fix-first or rethink, not a vote; changing Reviewers never clears it.
+
+Use `scripts/review-round.py` to persist each one-member review step, its predecessor
+ID/digest, exact candidate/basis and cumulative finding dispositions. New full contracts
+put the strategy and budget in review_policy; final-accept also requires the persisted
+step ID. Stage acceptance needs a complete valid current-candidate ship, resolved
+inherited blockers and Root acceptance, then proceeds to the next stage. Design review
+is separate from product acceptance and is not automatically spawned or counted as a
+product Reviewer. If explicitly requested, settle its separate scope/budget first.
+
+Historical contracts with `reviewers_per_round` retain the 0.9.0 independent-pool rule:
+exactly N fresh contexts on the same candidate, all-new contexts after correction.
+Contracts without either policy retain historical single-V interpretation. Do not edit
+old contracts or relabel old reviews in place; an explicit policy migration creates a
+new contract and rebinds evidence. The user-approved sequential cycle needs no recurring
+permission request merely because the last Reviewer is continuing after correction.
 
 ## Declare the route before task tools
 
@@ -84,11 +107,11 @@ model, effort, or reviewer.
 - `delegate`: select Luna / XHigh for bounded, fully specified work, or Sol implementer / High for
   judgment-heavy, high-risk, context-heavy, or wide-blast-radius work. The selected
   implementer executes the complete spec; root verifies; do not request a fresh review.
-- `audit`: root implements and verifies; the configured fresh read-only Sol Reviewers / High review
+- `audit`: root implements and verifies; the sequential read-only Sol Reviewers / High review
   the accumulated diff; spawn no implementer.
 - `full`: only for an explicit broad or high-risk exception. Root owns plan, identity,
   decision, release, and final acceptance; it schedules one or more peer Sol implementer stage
-  deliveries under the immutable task contract, then the configured fresh Sol Reviewers perform technical
+  deliveries under the immutable task contract, then the sequential Sol Reviewers perform technical
   validation. Root investigates exceptions and binds identity, but does not perform a
   default technical rerun or duplicate diff review.
 
@@ -204,9 +227,9 @@ on an authorized resume, preserve prior failures and the cumulative closure reco
 
 ## Review only when the route includes it
 
-For `audit`, after Root verification, spawn a new native Sol reviewer / High. For `full`,
-after structured Sol implementer deliveries and identity binding, spawn a new native
-Sol reviewer / High. The reviewer must remain behaviorally read-only, inspect the actual
+At the start of an audit review cycle, after Root verification, spawn Reviewer 1. For
+full, start after structured Sol implementer deliveries and identity binding. Corrections
+follow the sequential identity budget above. Use the exact native Sol reviewer / High. The reviewer must remain behaviorally read-only, inspect the actual
 accumulated diff, and return `REVIEW_STATUS: valid|unavailable|invalid`; only valid carries
 exactly one of ship, fix-first, or rethink. A reviewer never implements its own fixes. For
 every high-risk or repeated-omission principal material
@@ -215,10 +238,10 @@ hash or log alone is not approval. `solo` and `delegate` do not receive a fresh 
 
 - ship: report completion with the verification evidence.
 - fix-first applies only to `audit` and `full`:
-  - audit: the root implements the required correction, re-verifies, and obtains a new
-    fresh reviewer.
+  - audit: the root implements the required correction, re-verifies, and obtains the next
+    fresh Reviewer or resumes the last Reviewer when the configured budget is reached.
   - full: the relevant peer Sol implementer stage handles the required correction; Root binds the
-    new delivery/candidate identity, and a new fresh Sol technical review follows.
+    new delivery/candidate identity, and the next fresh Reviewer or last-Reviewer continuation follows.
   - solo and delegate: no fresh reviewer is added unless a newly observed,
     risk-evidenced route escalation is declared; never silently add one.
 - rethink: revise the architecture and do not report completion.
@@ -228,9 +251,9 @@ and permission profile rules in the operations reference; never claim enforced
 read-only isolation when it was not observed.
 
 For `audit`, acceptance requires the frozen acceptance basis, resolved blocking findings,
-Root verification against the same candidate, and a valid fresh `ship`. For `full`, it
+Root verification against the same candidate, and a valid current-candidate `ship`. For `full`, it
 requires the frozen basis, structured peer delivery/candidate identity, resolved blocking
-findings, and fresh Sol technical `REVIEW_STATUS: valid` with `ship`; Root then makes the
+findings, and candidate-bound Sol technical `REVIEW_STATUS: valid` with `ship`; Root then makes the
 final acceptance decision without a default technical rerun. For `solo` and `delegate`,
 apply the same acceptance basis and Root evidence without adding a reviewer. A time or
 retry limit may produce an honest partial or blocked result; it never turns unmet acceptance

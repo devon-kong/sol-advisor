@@ -2321,7 +2321,8 @@ def require_persisted_p2_predecessor_closure(
 
 def require_review_round(task, contract, relationship, acceptance, round_id):
     """Gate new contracts with the complete orchestration pool, retaining legacy V."""
-    if "reviewers_per_round" not in contract["review_policy"]:
+    sequential = contract["review_policy"].get("review_strategy") == full_protocol.SEQUENTIAL_REVIEW_STRATEGY
+    if "reviewers_per_round" not in contract["review_policy"] and not sequential:
         if round_id is not None or "review_round_id" in acceptance:
             raise WorkflowError("review-invalid", "legacy contract does not select review rounds", affected=str(round_id))
         return None
@@ -2329,17 +2330,17 @@ def require_review_round(task, contract, relationship, acceptance, round_id):
         round_id = _task_component(round_id, "review round ID")
         value, _ = _json_bytes(task / "review-rounds" / (round_id + ".json"))
         tool = review_round_tool()
-        tool.validate_record(value, count=contract["review_policy"]["reviewers_per_round"],
+        previous = [_json_bytes(path)[0] for path in sorted((task / "review-rounds").glob("*.json"))
+                    if path != task / "review-rounds" / (round_id + ".json")]
+        tool.validate_record(value, count=contract["review_policy"].get("max_reviewers", 2) if sequential else contract["review_policy"]["reviewers_per_round"],
             candidate_id=relationship.manifest["candidate_id"], acceptance_digest=contract["contract_digest"],
             scope=relationship.packet.get("stage_key", "final"),
             isolation_admission=contract["review_policy"].get("isolation_admission", "hard-read-only"),
-            review_policy=contract["review_policy"])
+            review_policy=contract["review_policy"], previous=previous)
         members = tool.full_member_admission(task, contract, relationship.manifest,
-            relationship.candidate_verify_receipt, relationship.candidate_bridge["bridge_id"], value["members"])
+            relationship.candidate_verify_receipt, relationship.candidate_bridge["bridge_id"], value["members"], scope=value.get("scope"))
         if members != value["members"]:
             raise ValueError("round member admission drifted")
-        previous = [_json_bytes(path)[0] for path in sorted((task / "review-rounds").glob("*.json"))
-                    if path != task / "review-rounds" / (round_id + ".json")]
         if value != tool.aggregate(value, previous=previous,
             isolation_admission=contract["review_policy"].get("isolation_admission", "hard-read-only"),
             review_policy=contract["review_policy"]):
@@ -2349,6 +2350,11 @@ def require_review_round(task, contract, relationship, acceptance, round_id):
         if acceptance.get("review_round_id") != round_id or acceptance.get("review_round_digest") != value["round_digest"]:
             raise ValueError("A does not bind this exact review round")
         verdict = relationship.verdict
+        if sequential:
+            for step in [*previous, value]:
+                tool._full_sequence_step(task, step, contract)
+            if value["members"][0].get("verdict_id") != verdict["verdict_id"]:
+                raise ValueError("sequential acceptance must select the exact latest step V")
         if not any(m["status"] == "valid" and m["coverage_complete"] is True
                    and m["runtime"]["thread_id"] == verdict["reviewer_thread_id"]
                    and m["runtime"].get("context_id", m["runtime"]["thread_id"]) == verdict["reviewer_context_id"]

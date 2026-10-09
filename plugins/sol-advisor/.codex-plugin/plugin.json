@@ -1,7 +1,7 @@
 {
   "name": "sol-advisor",
-  "version": "0.9.0",
-  "description": "Codex-native selective routing with temporary runtime storage and configurable independent Reviewer rounds.",
+  "version": "0.10.0",
+  "description": "Codex-native selective routing with temporary runtime storage and bounded sequential Reviewer cycles.",
   "author": {
     "name": "Daniel McAteer",
     "url": "https://github.com/DannyMac180"
@@ -18,8 +18,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Sol Advisor",
-    "shortDescription": "Selective delivery with temporary state and independent Reviewer rounds.",
-    "longDescription": "Sol Advisor keeps architecture, scheduling, decisions, and acceptance with the root. Before work begins, it declares a SELECTIVE ROUTE and one shared acceptance basis. Solo is default; delegate uses one implementer; audit/full default to two independent fresh read-only Reviewers per round, with any positive user override. Root aggregates evidence without majority voting or automatic extra Reviewers. Full retains exact combined candidate and immutable evidence checks that fail closed; temporary runtime storage replaces mandatory project artifact directories.",
+    "shortDescription": "Selective delivery with bounded sequential review and temporary state.",
+    "longDescription": "Sol Advisor keeps planning, decisions and acceptance with Root. Solo is default; delegate uses one implementer. New audit/full tasks use at most two sequential Reviewer identities by default, configurable to any positive budget. A first ship can close immediately; corrections advance to the next fresh Reviewer, then reuse the last Reviewer once the budget is reached. Every review binds current bytes, inherited blockers and observed isolation. No automatic extra Reviewer or rewritten historical contracts. Full preserves the exact combined candidate and immutable evidence checks that fail closed.",
     "developerName": "Daniel McAteer",
     "category": "Productivity",
     "capabilities": [

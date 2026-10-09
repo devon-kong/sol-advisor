@@ -237,14 +237,14 @@ pass "UI metadata exposes orchestration and its default route prompt"
 
 jq empty "$manifest"
 case "$(jq -r '.version' "$manifest")" in
-  0.9.0) ;;
-  *) fail "manifest version is not 0.9.0" ;;
+  0.10.0) ;;
+  *) fail "manifest version is not 0.10.0" ;;
 esac
 jq -e '.name == "sol-advisor" and (.plugins | length) == 1 and .plugins[0].name == "sol-advisor" and .plugins[0].source.source == "local" and .plugins[0].source.path == "./plugins/sol-advisor"' "$marketplace" >/dev/null || fail "marketplace metadata does not point to the sole local sol-advisor plugin"
 grep -Fq 'SELECTIVE ROUTE' "$manifest" || fail "manifest omits route declaration"
 jq -e '.interface.longDescription | contains("fail closed") and contains("combined candidate")' "$manifest" >/dev/null || fail "manifest omits full-v2 candidate/evidence fail-closed semantics"
 grep -Fq 'For root startup, load only skill guidance, then declare the route before other task tools; never batch loading with task discovery.' "$manifest" || fail "manifest omits startup sequencing"
-pass "manifest JSON and v0.9.0 discovery copy"
+pass "manifest JSON and v0.10.0 discovery copy"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path
@@ -579,7 +579,7 @@ grep -Fq 'Do not batch skill/reference loading with repository discovery or othe
 grep -Fq 'No other task tool call may precede this declaration' "$skill" || fail "skill permits tool-before-route"
 grep -Fq 'Solo is the default' "$skill" || fail "skill omits solo default"
 grep -Fq 'One implementer is the default maximum' "$skill" || fail "skill omits delegate implementer limit"
-grep -Fq 'reviewers_per_round: 2' "$skill" || fail "skill omits default Reviewer pool"
+grep -Fq 'max_reviewers: 2' "$skill" || fail "skill omits default sequential Reviewer budget"
 grep -Fq 'Never spawn N+1' "$skill" || fail "skill permits automatic extra Reviewer"
 grep -Fq 'Do not require or create project' "$skill" || fail "skill requires workspace artifacts"
 grep -Fq 'A later declaration may only escalate the route when newly' "$skill" || fail "skill omits escalation gate"
@@ -607,7 +607,7 @@ grep -Fqi 'first Luna result' "$contracts" || fail "contracts omit Luna-to-Sol i
 grep -Fqi 'not a prerequisite' "$contracts" || fail "contracts make corrected Luna mandatory"
 grep -Fq 'do not request a fresh review' "$skill" || fail "skill makes delegate review mandatory"
 grep -Fq '`solo` and `delegate` do not receive a fresh reviewer' "$skill" || fail "skill makes solo/delegate review mandatory"
-grep -Fq 'audit: the root implements the required correction, re-verifies, and obtains a new' "$skill" || fail "skill does not assign audit corrections to root"
+grep -Fq 'audit: the root implements the required correction, re-verifies, and obtains the next' "$skill" || fail "skill does not assign audit corrections to root"
 grep -Fq 'full: the relevant peer Sol implementer stage handles the required correction' "$skill" || fail "skill does not return full corrections to the owning peer Sol implementer stage"
 grep -Fq 'new delivery/candidate identity' "$skill" || fail "skill does not invalidate full candidate identity after correction"
 if grep -Fq 'fix-first: delegate the required correction' "$skill"; then fail "skill retains unconditional fix-first delegation"; fi
@@ -722,6 +722,15 @@ all_test_output=$(PYTHONDONTWRITEBYTECODE=1 python3 "$strict_test_runner" --test
   --required-id test_workflow.WorkflowTests.test_assemble_recovers_artifacts_before_state_and_state_before_receipt \
   --required-id test_workflow.WorkflowTests.test_assembly_does_not_create_or_copy_untracked_artifact_trees \
   --required-id test_review_round.ReviewRoundTests.test_default_two_and_explicit_positive_counts \
+  --required-id test_review_round.SequentialReviewTests.test_two_rejections_then_same_second_context_can_ship_new_candidate \
+  --required-id test_review_round.SequentialReviewTests.test_configured_three_uses_third_fresh_then_continues_third \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_sequential_first_ship_public_acceptance_and_recovery \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_sequential_nonvalid_history_counts_identity_and_rejects_forgery \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_sequential_historical_same_candidate_review_replays_original_cli_receipt \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_sequential_history_readmits_missing_or_drifted_behavioral_windows \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_sequential_historical_runtime_receipt_digest_is_readmitted \
+  --required-id test_flow_alignment_integration.FlowIntegrationTests.test_sequential_correction_uses_budget_then_last_reviewer_through_cli \
+  --required-id test_verify_test_suite.VerifyTestSuiteTests.test_v090_reviewer_migrates_exact_bytes_and_preserves_custom_edits \
   --required-id test_review_round.ReviewRoundTests.test_corrupt_previous_round_cannot_hide_reused_identity \
   --required-id test_flow_alignment_integration.FlowIntegrationTests.test_review_round_policy_blocks_single_v_then_accepts_complete_pool \
   --required-id test_flow_alignment_integration.FlowIntegrationTests.test_pool_peer_behavioral_window_valid_neighbor_and_drift_rejection \
@@ -730,6 +739,8 @@ all_test_output=$(PYTHONDONTWRITEBYTECODE=1 python3 "$strict_test_runner" --test
   --required-id test_run_check.RunCheckTests.test_timeout_kills_a_child_that_ignores_term \
   --required-id test_review_packet.ReviewPacketTests.test_record_review_requires_observed_sol_and_applies_ship_transition \
   --required-id test_behavioral_fixtures.BehavioralFixtureTests.test_full_v2_action_trace_grader_distinguishes_valid_and_invalid_mechanisms \
+  --required-id test_behavioral_fixtures.BehavioralFixtureTests.test_sequential_trace_budget_and_last_context_continuation \
+  --required-id test_behavioral_fixtures.BehavioralFixtureTests.test_sequential_trace_first_ship_and_invalid_budget \
   --required-id test_scoped_chain.ScopedChainTests.test_scoped_candidate_run_persists_real_evidence_before_packet \
   --required-id test_scoped_chain.ScopedChainTests.test_scoped_chain_records_packet_challenge_and_tagged_hard_review_from_real_runs \
   --required-id test_scoped_chain.ScopedChainTests.test_scoped_readme_byte_drift_rejects_review_before_its_intent \
@@ -768,4 +779,4 @@ sh -n "$runtime_inspector"
 sh -n "$script_dir/verify.sh"
 pass "shell syntax"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor v0.9.0 full-v2 checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor v0.10.0 full-v2 checks completed in $tmp_dir"

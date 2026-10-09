@@ -23,7 +23,7 @@ def text(value, label):
     return value
 
 
-def aggregate(value, *, previous=(), isolation_admission='hard-read-only', review_policy=None):
+def _aggregate_pool(value, *, previous=(), isolation_admission='hard-read-only', review_policy=None):
     if not isinstance(value, dict):
         raise ValueError('round input must be an object')
     result = copy.deepcopy(value)
@@ -130,16 +130,235 @@ def aggregate(value, *, previous=(), isolation_admission='hard-read-only', revie
     return result
 
 
-def validate_record(value, *, count, candidate_id, acceptance_digest, scope, isolation_admission, review_policy=None):
-    rebuilt = aggregate(value, isolation_admission=isolation_admission, review_policy=review_policy)
+def _identity(member):
+    runtime = member['runtime']
+    return runtime['thread_id'], runtime.get('context_id', runtime['thread_id'])
+
+
+def _sequence_step(value, history, *, isolation_admission, review_policy):
+    result = copy.deepcopy(value)
+    if result.get('review_strategy') != protocol.SEQUENTIAL_REVIEW_STRATEGY or 'reviewers_per_round' in result:
+        raise ValueError('sequential step requires its explicit strategy, without a pool count')
+    policy = review_policy or {}
+    if policy and policy.get('review_strategy') != protocol.SEQUENTIAL_REVIEW_STRATEGY:
+        raise ValueError('step strategy differs from frozen review policy')
+    budget = result.get('max_reviewers', policy.get('max_reviewers', 2))
+    if type(budget) is not int or budget < 1 or (policy and budget != policy.get('max_reviewers', 2)):
+        raise ValueError('max_reviewers must match the positive frozen budget')
+    result['max_reviewers'] = budget
+    single = {key: result.get(key) for key in ('round_id', 'candidate_id', 'acceptance_digest', 'scope', 'members', 'dispositions')}
+    single['reviewers_per_round'] = 1
+    checked = _aggregate_pool(single, isolation_admission=isolation_admission, review_policy=review_policy)
+    member = result['members'][0]
+    for old in history:
+        if any(old[key] != result[key] for key in ('max_reviewers', 'acceptance_digest', 'scope', 'review_strategy')):
+            raise ValueError('sequential history changes budget, acceptance basis or scope')
+    current = _identity(member)
+    mode = protocol.validate_sequential_reviewer_identity(current,
+        [_identity(old['members'][0]) for old in history], budget,
+        same_candidate=bool(history) and history[-1]['candidate_id'] == result['candidate_id'])
+    inherited = {}
+    for old in history:
+        old_member = old['members'][0]
+        for finding in old_member['findings']:
+            key = old_member['review_id'] + ':' + finding['finding_id']
+            if old['dispositions'][key]['decision'] == 'accept':
+                inherited[old['round_id'] + ':' + key] = finding
+    closures = result.get('closure_dispositions')
+    if not isinstance(closures, dict) or set(closures) != set(inherited):
+        raise ValueError('closure dispositions must cover every inherited accepted finding')
+    blockers = copy.deepcopy(checked['blockers'])
+    for key, finding in inherited.items():
+        disposition = closures[key]
+        if not isinstance(disposition, dict) or disposition.get('decision') not in {'resolved', 'open', 'reject'}:
+            raise ValueError('invalid inherited finding disposition')
+        if disposition['decision'] in {'resolved', 'reject'}:
+            text(disposition.get('evidence'), 'finding closure evidence')
+            if disposition['decision'] == 'reject':
+                text(disposition.get('reason'), 'finding rejection reason')
+        else:
+            blockers.append({'root_cause': finding.get('root_cause', key), 'sources': [key], 'findings': [finding]})
+    status = checked['status']
+    verdict = ('rethink' if any(f['class'] == 'architecture-contract' for group in blockers for f in group['findings'])
+               else 'fix-first') if blockers else 'ship'
+    if status != 'valid':
+        verdict = None
+    identities = list(dict.fromkeys([*[_identity(old['members'][0]) for old in history], current]))
+    result.update(status=status, verdict=verdict, blockers=blockers, review_mode=mode,
+                  reviewer_identities=[{'thread_id': t, 'context_id': c} for t, c in identities])
+    result['round_digest'] = protocol.canonical_digest({k: v for k, v in result.items() if k != 'round_digest'})
+    return result
+
+
+def sequence_history(value, previous, *, isolation_admission='hard-read-only', review_policy=None):
+    """Rebuild every immutable predecessor and reject omitted, forked or changed history."""
+    records = {}
+    for old in previous:
+        if not isinstance(old, dict) or old.get('review_strategy') != protocol.SEQUENTIAL_REVIEW_STRATEGY:
+            raise ValueError('sequential history contains a different strategy')
+        key = text(old.get('round_id'), 'previous round ID')
+        if key in records or key == value.get('round_id'):
+            raise ValueError('duplicate sequential step ID')
+        records[key] = old
+    cache, visiting = {}, set()
+    def ancestors(item):
+        key, digest = item.get('previous_round_id'), item.get('previous_round_digest')
+        if key is None:
+            if digest is not None:
+                raise ValueError('first step must have null predecessor ID and digest')
+            return []
+        text(key, 'predecessor step ID'); text(digest, 'predecessor step digest')
+        if key not in records or records[key].get('round_digest') != digest:
+            raise ValueError('sequential predecessor is missing or its digest changed')
+        if key in visiting:
+            raise ValueError('sequential history contains a cycle')
+        if key not in cache:
+            visiting.add(key)
+            chain = ancestors(records[key])
+            rebuilt = _sequence_step(records[key], chain, isolation_admission=isolation_admission, review_policy=review_policy)
+            if rebuilt != records[key]:
+                raise ValueError('previous sequential step contents/digest drifted')
+            cache[key] = chain + [rebuilt]
+            visiting.remove(key)
+        return cache[key]
+    for old in records.values():
+        ancestors({'previous_round_id': old['round_id'], 'previous_round_digest': old.get('round_digest')})
+    chain = ancestors(value)
+    relevant = {key for key, old in records.items()
+                if old.get('scope') == value.get('scope') and old.get('acceptance_digest') == value.get('acceptance_digest')}
+    if {old['round_id'] for old in chain} != relevant:
+        raise ValueError('sequential history omitted a step or forks an existing cycle')
+    return chain
+
+
+def aggregate(value, *, previous=(), isolation_admission='hard-read-only', review_policy=None):
+    strategy = value.get('review_strategy') if isinstance(value, dict) else None
+    if strategy == protocol.SEQUENTIAL_REVIEW_STRATEGY or (review_policy or {}).get('review_strategy') == protocol.SEQUENTIAL_REVIEW_STRATEGY:
+        history = sequence_history(value, previous, isolation_admission=isolation_admission, review_policy=review_policy)
+        return _sequence_step(value, history, isolation_admission=isolation_admission, review_policy=review_policy)
+    if strategy is not None:
+        raise ValueError('unsupported review strategy')
+    return _aggregate_pool(value, previous=previous, isolation_admission=isolation_admission, review_policy=review_policy)
+
+
+def validate_record(value, *, count=None, candidate_id, acceptance_digest, scope, isolation_admission, review_policy=None, previous=()):
+    rebuilt = aggregate(value, previous=previous, isolation_admission=isolation_admission, review_policy=review_policy)
     if value != rebuilt:
         raise ValueError('review round contents/digest drifted')
-    if (value['reviewers_per_round'], value['candidate_id'], value['acceptance_digest'], value['scope']) != (count, candidate_id, acceptance_digest, scope):
+    actual_count = value.get('max_reviewers') if value.get('review_strategy') == protocol.SEQUENTIAL_REVIEW_STRATEGY else value['reviewers_per_round']
+    if (actual_count, value['candidate_id'], value['acceptance_digest'], value['scope']) != (count, candidate_id, acceptance_digest, scope):
         raise ValueError('review round does not bind the current requested count/candidate/contract/scope')
     return value
 
 
-def full_member_admission(task, contract, manifest, receipt, bridge_id, members):
+def identity_history(history):
+    """Compact canonical-V metadata from the complete persisted step chain, all statuses."""
+    return [{'round_id': old['round_id'], 'round_digest': old['round_digest'],
+             'candidate_id': old['candidate_id'], 'verdict_id': old['members'][0]['verdict_id'],
+             'thread_id': _identity(old['members'][0])[0], 'context_id': _identity(old['members'][0])[1],
+             'acceptance_digest': old['acceptance_digest'], 'scope': old['scope']} for old in history]
+
+
+def _stored_ancestors(task, step):
+    import workflow
+    chain, seen = [], {step['round_id']}
+    key, digest = step.get('previous_round_id'), step.get('previous_round_digest')
+    while key is not None:
+        protocol.canonical_component(key, 'sequential predecessor ID')
+        if key in seen:
+            raise ValueError('sequential history contains a cycle')
+        seen.add(key)
+        old, _ = workflow._json_bytes(task / 'review-rounds' / (key + '.json'))
+        if old['round_id'] != key or old['round_digest'] != digest or old['scope'] != step['scope'] or old['acceptance_digest'] != step['acceptance_digest']:
+            raise ValueError('sequential persisted predecessor binding changed')
+        chain.append(old)
+        key, digest = old.get('previous_round_id'), old.get('previous_round_digest')
+    if digest is not None:
+        raise ValueError('sequential first predecessor digest must be null')
+    return list(reversed(chain))
+
+
+def _full_sequence_step(task, step, contract):
+    """A summary never substitutes for the persisted native-runtime-bound V/context."""
+    import workflow
+    member = step['members'][0]
+    verdict_id = protocol.canonical_component(member.get('verdict_id'), 'sequential member verdict ID')
+    directory = task / 'reviews' / verdict_id
+    verdict, _ = workflow._json_bytes(directory / 'V.json')
+    runtime, _ = workflow._json_bytes(directory / 'reviewer-runtime.json')
+    package, _ = workflow._json_bytes(directory / 'context.json')
+    context = workflow._relationship_from_stored_package(package)
+    admitted = full_member_admission(task, contract, context.manifest,
+        context.candidate_verify_receipt, context.candidate_bridge['bridge_id'], [member], scope=step['scope'])
+    if admitted != [member]:
+        raise ValueError('historical sequential runtime/window admission drifted')
+    checked = protocol.validate_relationship_context(context, target='review')
+    if verdict.get('review_history') != identity_history(_stored_ancestors(task, step)):
+        raise ValueError('canonical V identity history differs from persisted step ancestry')
+    if checked != verdict or context.task_contract != contract:
+        raise ValueError('sequential member V/context/contract drifted')
+    if runtime != member['runtime'] or context.observed_attestation != member.get('attestation'):
+        raise ValueError('sequential member runtime/attestation differs from persisted review')
+    if (context.manifest['candidate_id'], verdict.get('stage_key'), verdict.get('contract_digest')) != (step['candidate_id'], step['scope'], step['acceptance_digest']):
+        raise ValueError('sequential member V does not bind its candidate/basis/stage')
+    if (verdict['status'], verdict.get('verdict'), verdict.get('coverage_complete', False)) != (member['status'], member['verdict'], member['coverage_complete']):
+        raise ValueError('sequential member summary differs from its canonical V')
+    if (verdict.get('reviewer_thread_id'), verdict.get('reviewer_context_id')) != _identity(member):
+        raise ValueError('sequential member identity differs from canonical V')
+    ids = {item.get('finding_id') for item in member['findings']}
+    if any(item.get('finding_id') not in ids for item in verdict.get('blocking_findings', [])):
+        raise ValueError('sequential summary omits a canonical blocking finding')
+    workflow.require_persisted_p2_predecessor_closure(task, contract=contract,
+        closure=protocol._validate_predecessor_closure(list(context.packet['rejection_roots']), context.predecessor_verdicts or {}),
+        predecessor_verdicts=context.predecessor_verdicts or {}, affected=verdict_id)
+    return context
+
+
+def admit_sequence_reviewer(task, contract, *, candidate_id, scope, runtime, verdict_id):
+    """Check the persisted cycle before publishing a new V, including invalid attempts."""
+    import workflow
+    previous = [workflow._json_bytes(path)[0] for path in sorted((task / 'review-rounds').glob('*.json'))]
+    relevant = [old for old in previous if old['scope'] == scope]
+    if not relevant:
+        for path in (task / 'reviews').glob('*/V.json'):
+            old, _ = workflow._json_bytes(path)
+            if old.get('stage_key') == scope and old.get('verdict_id') != verdict_id:
+                raise ValueError('persist the previous sequential review step before the next V')
+        return []
+    parents = {old['previous_round_id'] for old in relevant if old['previous_round_id'] is not None}
+    heads = [old for old in relevant if old['round_id'] not in parents]
+    if len(heads) != 1:
+        raise ValueError('sequential review history has no unique head')
+    head = heads[0]
+    probe = {'round_id': '__next-review__', 'scope': scope, 'acceptance_digest': contract['contract_digest'],
+             'previous_round_id': head['round_id'], 'previous_round_digest': head['round_digest']}
+    history = sequence_history(probe, previous, review_policy=contract['review_policy'],
+                               isolation_admission=contract['review_policy'].get('isolation_admission', 'hard-read-only'))
+    # Replay may name any completed V on this still-current candidate, not just the head.
+    matching = [index for index, old in enumerate(history) if old['members'][0].get('verdict_id') == verdict_id]
+    if len(matching) > 1:
+        raise ValueError('sequential history duplicates a canonical V')
+    if matching:
+        original = history[matching[0]]
+        if _identity(original['members'][0]) != (runtime['thread_id'], runtime.get('context_id', runtime['thread_id'])) or original['candidate_id'] != candidate_id:
+            raise ValueError('sequential review replay identity/candidate drifted')
+        admitted_history = history[:matching[0]]
+    else:
+        protocol.validate_sequential_reviewer_identity((runtime['thread_id'], runtime.get('context_id', runtime['thread_id'])),
+            [_identity(old['members'][0]) for old in history], contract['review_policy'].get('max_reviewers', 2),
+            same_candidate=head['candidate_id'] == candidate_id)
+        admitted_history = history
+    for old in history:
+        _full_sequence_step(task, old, contract)
+    represented = {old['members'][0]['verdict_id'] for old in history}
+    for path in (task / 'reviews').glob('*/V.json'):
+        old, _ = workflow._json_bytes(path)
+        if old.get('stage_key') == scope and old['verdict_id'] not in represented | {verdict_id}:
+            raise ValueError('sequential review history omits a prior V')
+    return admitted_history
+
+
+def full_member_admission(task, contract, manifest, receipt, bridge_id, members, *, scope=None):
     """Reuse the existing tagged admission for every member, not only canonical V."""
     import importlib.util
     import workflow
@@ -180,7 +399,9 @@ def full_member_admission(task, contract, manifest, receipt, bridge_id, members)
                 if directory == 'reviews' and old.get('candidate_bridge_id') == bridge_id:
                     continue  # Current-candidate continuation, including canonical V.
                 if old.get('reviewer_thread_id') == thread or old.get('reviewer_context_id') == context:
-                    raise ValueError('product Reviewer reuses a design or prior-candidate context')
+                    if directory == 'reviews' and contract['review_policy'].get('review_strategy') == protocol.SEQUENTIAL_REVIEW_STRATEGY and old.get('stage_key') == scope:
+                        continue  # The complete sequential chain separately admits only the budget's last Reviewer.
+                    raise ValueError('product Reviewer reuses a design or prior-stage/candidate context')
     return results
 
 
@@ -194,20 +415,23 @@ def record(task_dir, value):
         records = workflow.read_task(task)
         contract, state = records['contract'], records['state']
         policy = contract['review_policy']
-        if 'reviewers_per_round' not in policy:
+        if 'reviewers_per_round' not in policy and policy.get('review_strategy') != protocol.SEQUENTIAL_REVIEW_STRATEGY:
             raise ValueError('legacy task contract does not select Reviewer rounds')
-        count = reviewer_count(policy['reviewers_per_round'])
+        count = policy.get('max_reviewers', 2) if policy.get('review_strategy') == protocol.SEQUENTIAL_REVIEW_STRATEGY else reviewer_count(policy['reviewers_per_round'])
         previous = [workflow._json_bytes(p)[0] for p in sorted((task / 'review-rounds').glob('*.json')) if p != path]
         manifest_path = task / 'assemblies' / state['current_ids']['assembly_index'].removeprefix('I-') / 'candidate-manifest.json'
         manifest, _ = workflow._json_bytes(manifest_path)
         receipt = workflow._candidate_verify_receipt(manifest)
         workflow._require_current_candidate(manifest, receipt, affected=round_id)
         value = copy.deepcopy(value)
-        value['members'] = full_member_admission(task, contract, manifest, receipt, state['current_ids']['candidate_binding'], value['members'])
+        value['members'] = full_member_admission(task, contract, manifest, receipt, state['current_ids']['candidate_binding'], value['members'], scope=value.get('scope'))
         result = aggregate(value, previous=previous, isolation_admission=policy.get('isolation_admission', 'hard-read-only'), review_policy=policy)
         scope = state['stage_status'].get('stage_key', 'final')
         validate_record(result, count=count, candidate_id=manifest['candidate_id'], acceptance_digest=contract['contract_digest'], scope=scope,
-                        isolation_admission=policy.get('isolation_admission', 'hard-read-only'), review_policy=policy)
+                        isolation_admission=policy.get('isolation_admission', 'hard-read-only'), review_policy=policy, previous=previous)
+        if policy.get('review_strategy') == protocol.SEQUENTIAL_REVIEW_STRATEGY:
+            for step in [*previous, result]:
+                _full_sequence_step(task, step, contract)
         # This publisher requires the existing lock and never replaces differing bytes.
         workflow._publish_task_immutable_bytes_locked(task, ['review-rounds', round_id + '.json'], protocol.canonical_json_bytes(result))
     return result
