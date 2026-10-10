@@ -8,8 +8,14 @@ delegation, verification, and acceptance.
 
 See [Codex Cloud 安装与使用手册](docs/codex-cloud-guide.zh-CN.md) for account-level
 personal plugin installation, new cloud task discovery, and the separate `cloud-full`
-adapter. The GitHub source remains `0.10.0`; the tested personal cloud package is
-`0.10.1`. This repository does not ship `cloud-adapter.md`, so cloning `main` or
+adapter. The GitHub source remains `0.10.0`. The guide's corrected cloud review
+policy applies to the published personal package `0.10.2`, whose live cloud smoke
+test verified two continuations of the same final Reviewer on new candidates;
+the guide records the test's limits and procedural deviations. The earlier cloud
+fixture was tested with `0.10.1`. `max_reviewers` limits new
+Reviewer identities per stage, not correction cycles: after the budget is reached,
+the last Reviewer continues on each new candidate in the same context.
+This repository does not ship `cloud-adapter.md`, so cloning `main` or
 installing the native plugin alone does not enable `cloud-full`. Obtain an authorized
 cloud-adapted package first. Cloud review is behaviorally read-only on a shared
 filesystem; it does not provide enforced per-agent read-only isolation.
